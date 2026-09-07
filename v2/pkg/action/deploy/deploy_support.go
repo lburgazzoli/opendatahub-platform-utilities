@@ -78,14 +78,17 @@ func (a *Action) own(
 	values RunOptions,
 	desired *unstructured.Unstructured,
 ) error {
-	if !a.shouldOwn(desired) {
+	switch {
+	case desired.GroupVersionKind() == gvk.CustomResourceDefinition:
 		return nil
-	}
-
-	desired.SetOwnerReferences(nil)
-	err := ownership.SetControllerReference(values.Owner, desired, values.Client.Scheme())
-	if err != nil {
-		return fmt.Errorf("set controller owner: %w", err)
+	case slices.Contains(a.options.ExcludeFromOwnership, desired.GroupVersionKind()):
+		return nil
+	default:
+		desired.SetOwnerReferences(nil)
+		err := ownership.SetControllerReference(values.Owner, desired, values.Client.Scheme())
+		if err != nil {
+			return fmt.Errorf("set controller owner: %w", err)
+		}
 	}
 
 	return nil
@@ -131,11 +134,6 @@ func (a *Action) apply(
 	}
 
 	return nil
-}
-
-func (a *Action) shouldOwn(desired *unstructured.Unstructured) bool {
-	return desired.GroupVersionKind() != gvk.CustomResourceDefinition &&
-		!slices.Contains(a.options.ExcludeFromOwnership, desired.GroupVersionKind())
 }
 
 func (a *Action) lookupCurrent(
