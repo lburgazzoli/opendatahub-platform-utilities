@@ -18,7 +18,8 @@ type SortFunc func(context.Context, resources.List) (resources.List, error)
 // SortFn is retained as a descriptive alias for sorting options.
 type SortFn = SortFunc
 
-func defaultApplyOrder(ctx context.Context, objects resources.List) (resources.List, error) {
+// ApplyOrder orders desired objects by Kubernetes dependency rank.
+func ApplyOrder(ctx context.Context, objects resources.List) (resources.List, error) {
 	_ = ctx
 	ordered := append(resources.List(nil), objects...)
 	slices.SortStableFunc(ordered, func(left client.Object, right client.Object) int {
@@ -33,21 +34,37 @@ func applyRank(gvk schema.GroupVersionKind) int {
 	switch {
 	case gvk == kubegvk.CustomResourceDefinition:
 		return 0
-	case gvk.Kind == kindNamespace:
+	case gvk == kubegvk.Namespace:
 		return 10
-	case gvk.Kind == "ServiceAccount", gvk.Kind == "ConfigMap", gvk.Kind == "Secret":
+	case gvk == kubegvk.ServiceAccount:
 		return 20
-	case gvk.Kind == "Role", gvk.Kind == "RoleBinding", gvk.Kind == kindClusterRole, gvk.Kind == "ClusterRoleBinding":
+	case gvk == kubegvk.ConfigMap:
+		return 20
+	case gvk == kubegvk.Secret:
+		return 20
+	case gvk == kubegvk.Role:
 		return 30
-	case gvk.Kind == "Service":
+	case gvk == kubegvk.RoleBinding:
+		return 30
+	case gvk == kubegvk.ClusterRole:
+		return 30
+	case gvk == kubegvk.ClusterRoleBinding:
+		return 30
+	case gvk == kubegvk.Service:
 		return 40
-	case gvk.Kind == "Deployment",
-		gvk.Kind == "StatefulSet",
-		gvk.Kind == "DaemonSet",
-		gvk.Kind == "Job",
-		gvk.Kind == "CronJob":
+	case gvk == kubegvk.Deployment:
 		return 50
-	case gvk.Kind == "MutatingWebhookConfiguration", gvk.Kind == "ValidatingWebhookConfiguration":
+	case gvk == kubegvk.StatefulSet:
+		return 50
+	case gvk == kubegvk.DaemonSet:
+		return 50
+	case gvk == kubegvk.Job:
+		return 50
+	case gvk == kubegvk.CronJob:
+		return 50
+	case gvk == kubegvk.MutatingWebhookConfiguration:
+		return 90
+	case gvk == kubegvk.ValidatingWebhookConfiguration:
 		return 90
 	default:
 		return 60

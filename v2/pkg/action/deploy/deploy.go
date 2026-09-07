@@ -24,11 +24,6 @@ var (
 	ErrFieldOwner        = errors.New("deploy field owner is required")
 )
 
-const (
-	kindNamespace   = "Namespace"
-	kindClusterRole = "ClusterRole"
-)
-
 // MergeFunc preserves caller-controlled fields while preparing a desired
 // object for deployment.
 type MergeFunc func(

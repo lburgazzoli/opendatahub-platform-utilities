@@ -9,6 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	platformmetadata "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata"
 )
@@ -178,7 +179,7 @@ func WithSort(sort SortFunc) Option {
 }
 
 // WithApplyOrder installs the default dependency ordering.
-func WithApplyOrder() Option { return WithSort(defaultApplyOrder) }
+func WithApplyOrder() Option { return WithSort(ApplyOrder) }
 
 // WithCache enables deploy caching. No argument uses the default TTL.
 func WithCache(values ...*CacheOptions) Option {
@@ -257,17 +258,14 @@ func defaultOptions() Options {
 		FieldOwner: func(owner client.Object) string {
 			return strings.ToLower(owner.GetObjectKind().GroupVersionKind().Kind)
 		},
-		Sort:              defaultApplyOrder,
-		ManagedAnnotation: "opendatahub.io/managed",
-		ExcludeFromOwnership: []schema.GroupVersionKind{{
-			Version: "v1",
-			Kind:    kindNamespace,
-		}},
+		Sort:                 ApplyOrder,
+		ManagedAnnotation:    "opendatahub.io/managed",
+		ExcludeFromOwnership: []schema.GroupVersionKind{kubegvk.Namespace},
 		MergeStrategies: map[schema.GroupVersionKind]MergeFunc{
 			appsv1.SchemeGroupVersion.WithKind("Deployment"): MergeDeployments,
 		},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: kindClusterRole}: chainCustomizers(
+			kubegvk.ClusterRole: chainCustomizers(
 				applyCoreCustomizer,
 				applyClusterRoleCustomizer,
 			),
