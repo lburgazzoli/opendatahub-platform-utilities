@@ -1,0 +1,116 @@
+package deploy
+
+import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
+	"fmt"
+	"sync"
+	"time"
+
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+)
+
+const defaultCacheTTL = 10 * time.Minute
+
+type cacheEntry struct {
+	created time.Time
+}
+
+//nolint:govet // mutex and TTL are intentionally adjacent to the cache map.
+type Cache struct {
+	mu      sync.Mutex
+	ttl     time.Duration
+	entries map[string]cacheEntry
+}
+
+func newCache(options *CacheOptions) *Cache {
+	if options == nil {
+		return nil
+	}
+	ttl := options.TTL
+	if ttl <= 0 {
+		ttl = defaultCacheTTL
+	}
+	return &Cache{ttl: ttl, entries: make(map[string]cacheEntry)}
+}
+
+func (cache *Cache) Sync() {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	now := time.Now()
+	for key, entry := range cache.entries {
+		if now.Sub(entry.created) >= cache.ttl {
+			delete(cache.entries, key)
+		}
+	}
+}
+
+func (cache *Cache) Add(
+	deployed *unstructured.Unstructured,
+	desired *unstructured.Unstructured,
+) error {
+	if deployed == nil || desired == nil {
+		return nil
+	}
+	key, err := cache.key(deployed, desired)
+	if err != nil {
+		return err
+	}
+	cache.mu.Lock()
+	cache.entries[key] = cacheEntry{created: time.Now()}
+	cache.mu.Unlock()
+	return nil
+}
+
+func (cache *Cache) Has(
+	deployed *unstructured.Unstructured,
+	desired *unstructured.Unstructured,
+) (bool, error) {
+	if deployed == nil || desired == nil {
+		return false, nil
+	}
+	key, err := cache.key(deployed, desired)
+	if err != nil {
+		return false, err
+	}
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	entry, found := cache.entries[key]
+	if !found || time.Since(entry.created) >= cache.ttl {
+		delete(cache.entries, key)
+		return false, nil
+	}
+	return true, nil
+}
+
+func (cache *Cache) Delete(
+	deployed *unstructured.Unstructured,
+	desired *unstructured.Unstructured,
+) error {
+	if deployed == nil || desired == nil {
+		return nil
+	}
+	key, err := cache.key(deployed, desired)
+	if err != nil {
+		return err
+	}
+	cache.mu.Lock()
+	delete(cache.entries, key)
+	cache.mu.Unlock()
+	return nil
+}
+
+func (cache *Cache) key(
+	deployed *unstructured.Unstructured,
+	desired *unstructured.Unstructured,
+) (string, error) {
+	data, err := json.Marshal(desired.Object)
+	if err != nil {
+		return "", fmt.Errorf("hash desired object: %w", err)
+	}
+	hash := sha256.Sum256(data)
+	return fmt.Sprintf("%s/%s/%s/%s/%s/%s",
+		deployed.GroupVersionKind(), deployed.GetNamespace(), deployed.GetName(),
+		deployed.GetResourceVersion(), hex.EncodeToString(hash[:]), desired.GetUID()), nil
+}

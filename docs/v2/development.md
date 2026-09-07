@@ -32,6 +32,14 @@ constraints as the original implementation.
   importing framework helpers into isolated test infrastructure.
 - When classifying mutually exclusive error outcomes, prefer a `switch` with
   one case per classification over a sequence of related `if` statements.
+- Do not group function parameters by type in new or modified declarations;
+  write each parameter explicitly (for example, use `desired *T, current *T`
+  rather than `desired, current *T`).
+- Add a helper function only when it has a meaningful reuse or abstraction
+  boundary; inline one-off calls and values when a helper would merely hide a
+  single operation.
+- Deployment must preserve the namespace supplied by the caller; do not infer
+  or default a desired resource namespace from the owner object.
 
 ## Tests and integration infrastructure
 
