@@ -21,17 +21,13 @@ func (a *Action) Validate() error {
 	if a == nil {
 		return ErrActionRequired
 	}
-	if !a.validated {
-		return validateOptions(a.options)
+	if a.validated {
+		return a.validationErr
 	}
-	return a.validationErr
-}
-
-func validateOptions(options Options) error {
-	if options.MetadataPolicy == nil {
+	if a.options.MetadataPolicy == nil {
 		return ErrMetadataPolicy
 	}
-	if options.FieldOwner == nil {
+	if a.options.FieldOwner == nil {
 		return ErrFieldOwner
 	}
 	return nil

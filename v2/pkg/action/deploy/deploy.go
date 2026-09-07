@@ -63,11 +63,11 @@ func New(values ...Option) *Action {
 	}
 
 	action := &Action{
-		options:   options,
-		cache:     newCache(options.Cache),
-		validated: true,
+		options: options,
+		cache:   newCache(options.Cache),
 	}
-	action.validationErr = validateOptions(options)
+	action.validationErr = action.Validate()
+	action.validated = true
 	return action
 }
 
