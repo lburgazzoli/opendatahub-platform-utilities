@@ -99,5 +99,6 @@ buildable; the v2 runtime must not depend on it.
 - [x] Deploy phase boundaries documented in `70c8cc6`.
 - [x] Deploy allocation benchmarks split into preparation, cache, apply, and
   no-op-client layers in `409b1d8`.
+- [x] Typed-versus-unstructured SSA and Run benchmarks added in `36a1a7b`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
