@@ -45,7 +45,9 @@ func Count(ctx context.Context, reader client.Reader, gvk schema.GroupVersionKin
 
 	err := reader.List(ctx, list)
 	switch {
-	case apierrors.IsNotFound(err), meta.IsNoMatchError(err):
+	case apierrors.IsNotFound(err):
+		return 0, nil
+	case meta.IsNoMatchError(err):
 		return 0, nil
 	case err != nil:
 		return 0, fmt.Errorf("count %s objects: %w", gvk, err)
