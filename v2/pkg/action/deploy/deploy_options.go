@@ -265,10 +265,7 @@ func defaultOptions() Options {
 			appsv1.SchemeGroupVersion.WithKind("Deployment"): MergeDeployments,
 		},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			kubegvk.ClusterRole: chainCustomizers(
-				applyCoreCustomizer,
-				applyClusterRoleCustomizer,
-			),
+			kubegvk.ClusterRole: applyCoreCustomizer,
 		},
 		PatchCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
 			appsv1.SchemeGroupVersion.WithKind("Deployment"): patchDeploymentCustomizer,

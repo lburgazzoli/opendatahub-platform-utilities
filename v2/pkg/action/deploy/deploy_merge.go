@@ -184,24 +184,6 @@ func containers(object *unstructured.Unstructured) ([]any, error) {
 	return result, nil
 }
 
-func applyClusterRoleCustomizer(
-	ctx context.Context,
-	kubernetesClient client.Client,
-	action *Action,
-	desired *unstructured.Unstructured,
-	existing *unstructured.Unstructured,
-) error {
-	_, _ = ctx, kubernetesClient
-	_, _ = action, existing
-	_, found, err := unstructured.NestedFieldNoCopy(desired.Object, "aggregationRule")
-	if err != nil {
-		return err
-	} else if found {
-		unstructured.RemoveNestedField(desired.Object, "rules")
-	}
-	return nil
-}
-
 func applyCoreCustomizer(
 	_ context.Context,
 	_ client.Client,
@@ -212,36 +194,13 @@ func applyCoreCustomizer(
 	if existing == nil {
 		return nil
 	}
-
 	_, found, err := unstructured.NestedFieldNoCopy(desired.Object, "aggregationRule")
 	if err != nil {
-		return fmt.Errorf("inspect aggregationRule: %w", err)
-	}
-	if found {
+		return err
+	} else if found {
 		unstructured.RemoveNestedField(desired.Object, "rules")
 	}
 	return nil
-}
-
-func chainCustomizers(values ...CustomizerFunc) CustomizerFunc {
-	return func(
-		ctx context.Context,
-		kubernetesClient client.Client,
-		action *Action,
-		desired *unstructured.Unstructured,
-		existing *unstructured.Unstructured,
-	) error {
-		for _, value := range values {
-			if value == nil {
-				continue
-			}
-			err := value(ctx, kubernetesClient, action, desired, existing)
-			if err != nil {
-				return err
-			}
-		}
-		return nil
-	}
 }
 
 func patchDeploymentCustomizer(

@@ -124,7 +124,6 @@ func (a *Action) write(
 	}
 }
 
-//nolint:cyclop // SSA combines merge, customization, aggregation, and apply semantics.
 func (a *Action) writeSSA(
 	ctx context.Context,
 	kubernetesClient client.Client,
@@ -142,13 +141,11 @@ func (a *Action) writeSSA(
 		}
 	}
 
-	customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]
-	if customizer == nil {
-		customizer = applyCoreCustomizer
-	}
-	err = customizer(ctx, kubernetesClient, a, desired, current)
-	if err != nil {
-		return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
+	if customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]; customizer != nil {
+		err = customizer(ctx, kubernetesClient, a, desired, current)
+		if err != nil {
+			return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
+		}
 	}
 	err = resources.Apply(
 		ctx,
