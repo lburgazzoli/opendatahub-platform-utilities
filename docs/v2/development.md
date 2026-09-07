@@ -38,6 +38,10 @@ constraints as the original implementation.
 - Add a helper function only when it has a meaningful reuse or abstraction
   boundary; inline one-off calls and values when a helper would merely hide a
   single operation.
+- Before implementing a method or function, check whether the same behavior
+  already exists in this repository or in the Go standard library,
+  controller-runtime, client-go, or Kubernetes APIs. Reuse existing behavior
+  instead of recreating it.
 - Deployment must preserve the namespace supplied by the caller; do not infer
   or default a desired resource namespace from the owner object.
 - Generic deploy customizers are defaults. A caller-provided per-GVK

@@ -5,22 +5,12 @@ import (
 	"strings"
 	"time"
 
-	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	platformmetadata "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata"
-)
-
-// Mode selects the Kubernetes write mechanism.
-type Mode uint8
-
-const (
-	ModeUnspecified Mode = iota
-	ModeSSA
-	ModePatch
 )
 
 // CacheOptions configures the optional process-local deploy cache.
@@ -33,7 +23,6 @@ type CacheOptions struct {
 //
 //nolint:govet // field order follows the public option grouping and readability.
 type Options struct {
-	Mode                 Mode
 	ContinueOnError      bool
 	MetadataPolicy       platformmetadata.Policy
 	FieldOwner           FieldOwnerFunc
@@ -41,21 +30,16 @@ type Options struct {
 	Annotations          map[string]string
 	Sort                 SortFunc
 	Cache                *CacheOptions
-	MergeStrategies      map[schema.GroupVersionKind]MergeFunc
 	ExcludeFromOwnership []schema.GroupVersionKind
 	ManagedAnnotation    string
 	LegacyOwners         []schema.GroupVersionKind
 	ApplyCustomizers     map[schema.GroupVersionKind]CustomizerFunc
-	PatchCustomizers     map[schema.GroupVersionKind]CustomizerFunc
 }
 
 // ApplyTo applies a complete options value over the current configuration.
 //
 //nolint:cyclop // each option field has independent documented zero semantics.
 func (o Options) ApplyTo(target *Options) {
-	if o.Mode != ModeUnspecified {
-		target.Mode = o.Mode
-	}
 	if o.MetadataPolicy != nil {
 		target.MetadataPolicy = o.MetadataPolicy
 	}
@@ -75,9 +59,6 @@ func (o Options) ApplyTo(target *Options) {
 		cache := *o.Cache
 		target.Cache = &cache
 	}
-	if o.MergeStrategies != nil {
-		target.MergeStrategies = maps.Clone(o.MergeStrategies)
-	}
 	if o.ExcludeFromOwnership != nil {
 		target.ExcludeFromOwnership = append([]schema.GroupVersionKind(nil), o.ExcludeFromOwnership...)
 	}
@@ -91,20 +72,10 @@ func (o Options) ApplyTo(target *Options) {
 	if o.ApplyCustomizers != nil {
 		target.ApplyCustomizers = maps.Clone(o.ApplyCustomizers)
 	}
-	if o.PatchCustomizers != nil {
-		target.PatchCustomizers = maps.Clone(o.PatchCustomizers)
-	}
 }
 
 // Option configures an Action.
 type Option = option.Option[Options]
-
-// WithMode selects SSA or patch mode.
-func WithMode(mode Mode) Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		options.Mode = mode
-	})
-}
 
 // WithMetadataPolicy replaces the metadata policy. A nil policy is ignored.
 func WithMetadataPolicy(policy platformmetadata.Policy) Option {
@@ -192,16 +163,6 @@ func WithCache(values ...*CacheOptions) Option {
 	})
 }
 
-// WithMergeStrategy registers a merge strategy for one GVK.
-func WithMergeStrategy(gvk schema.GroupVersionKind, merge MergeFunc) Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		if options.MergeStrategies == nil {
-			options.MergeStrategies = make(map[schema.GroupVersionKind]MergeFunc)
-		}
-		options.MergeStrategies[gvk] = merge
-	})
-}
-
 // WithContinueOnError controls whether deployment continues after an
 // individual resource fails.
 func WithContinueOnError(enabled bool) Option {
@@ -241,19 +202,8 @@ func WithApplyCustomizer(gvk schema.GroupVersionKind, customizer CustomizerFunc)
 	})
 }
 
-// WithPatchCustomizer registers a patch customizer for one GVK.
-func WithPatchCustomizer(gvk schema.GroupVersionKind, customizer CustomizerFunc) Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		if options.PatchCustomizers == nil {
-			options.PatchCustomizers = make(map[schema.GroupVersionKind]CustomizerFunc)
-		}
-		options.PatchCustomizers[gvk] = customizer
-	})
-}
-
 func defaultOptions() Options {
 	return Options{
-		Mode:           ModeSSA,
 		MetadataPolicy: platformmetadata.DefaultPolicy(),
 		FieldOwner: func(owner client.Object) string {
 			return strings.ToLower(owner.GetObjectKind().GroupVersionKind().Kind)
@@ -261,14 +211,9 @@ func defaultOptions() Options {
 		Sort:                 ApplyOrder,
 		ManagedAnnotation:    "opendatahub.io/managed",
 		ExcludeFromOwnership: []schema.GroupVersionKind{kubegvk.Namespace},
-		MergeStrategies: map[schema.GroupVersionKind]MergeFunc{
-			appsv1.SchemeGroupVersion.WithKind("Deployment"): MergeDeployments,
-		},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
 			kubegvk.ClusterRole: applyCoreCustomizer,
-		},
-		PatchCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			appsv1.SchemeGroupVersion.WithKind("Deployment"): patchDeploymentCustomizer,
+			kubegvk.Deployment:  applyDeploymentCustomizer,
 		},
 	}
 }

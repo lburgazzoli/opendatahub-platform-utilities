@@ -15,6 +15,7 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/labels"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/test/fixture/consumer"
@@ -24,7 +25,7 @@ func TestRunRequiresInputs(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	_, err := deploy.New(deploy.WithMode(deploy.ModePatch)).Run(t.Context())
+	_, err := deploy.New().Run(t.Context())
 	g.Expect(err).Should(MatchError(ContainSubstring("deploy client")))
 }
 
@@ -32,11 +33,13 @@ func TestRunRejectsInvalidStableOptions(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
 
-	action := deploy.New(deploy.Options{Mode: deploy.Mode(99)})
+	action := deploy.New(option.FunctionalOption[deploy.Options](func(options *deploy.Options) {
+		options.FieldOwner = nil
+	}))
 
-	g.Expect(action.Validate()).Should(MatchError(ContainSubstring("unsupported deploy mode")))
+	g.Expect(action.Validate()).Should(MatchError(ContainSubstring("field owner is required")))
 	_, err := action.Run(t.Context())
-	g.Expect(err).Should(MatchError(ContainSubstring("unsupported deploy mode")))
+	g.Expect(err).Should(MatchError(ContainSubstring("field owner is required")))
 }
 
 func TestRunNormalizesPublishesAndApplies(t *testing.T) {
@@ -54,7 +57,6 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	collection := resources.New(resources.List{desired})
 
 	result, err := deploy.New(
-		deploy.Options{Mode: deploy.ModePatch},
 		deploy.WithLabel("example.io/test", "true"),
 	).Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
@@ -92,7 +94,7 @@ func TestRunRejectsDuplicateIdentity(t *testing.T) {
 	second := first.DeepCopy()
 	collection := resources.New(resources.List{first, second})
 
-	_, err := deploy.New(deploy.Options{Mode: deploy.ModePatch}).Run(t.Context(), deploy.RunOptions{
+	_, err := deploy.New().Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
 	})
 	g.Expect(err).Should(MatchError(ContainSubstring("duplicate resource identity")))
@@ -114,7 +116,7 @@ func TestExecuteUsesRunContract(t *testing.T) {
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
 	collection := resources.New(resources.List{desired})
 
-	err := deploy.New(deploy.Options{Mode: deploy.ModePatch}).Execute(t.Context(), &pipeline.Request{
+	err := deploy.New().Execute(t.Context(), &pipeline.Request{
 		Client: kubernetesClient, Instance: owner, Resources: collection,
 	})
 	g.Expect(err).ShouldNot(HaveOccurred())

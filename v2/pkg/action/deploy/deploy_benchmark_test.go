@@ -13,15 +13,11 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
-func BenchmarkRunPatch(b *testing.B) {
-	benchmarkRun(b, deploy.ModePatch)
+func BenchmarkRun(b *testing.B) {
+	benchmarkRun(b)
 }
 
-func BenchmarkRunSSA(b *testing.B) {
-	benchmarkRun(b, deploy.ModeSSA)
-}
-
-func benchmarkRun(b *testing.B, mode deploy.Mode) {
+func benchmarkRun(b *testing.B) {
 	b.Helper()
 
 	for _, count := range []int{1, 10, 100} {
@@ -45,7 +41,7 @@ func benchmarkRun(b *testing.B, mode deploy.Mode) {
 				objects[index] = object
 			}
 			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-			action := deploy.New(deploy.WithMode(mode))
+			action := deploy.New()
 
 			b.ReportAllocs()
 			b.ResetTimer()

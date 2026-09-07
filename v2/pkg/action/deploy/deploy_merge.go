@@ -14,7 +14,6 @@ import (
 
 var (
 	ErrFieldNotSlice = errors.New("field is not a slice")
-	ErrFieldNotMap   = errors.New("field is not a map")
 )
 
 // MergeDeployments preserves live replicas, container resources, and probes
@@ -54,23 +53,6 @@ func MergeObservabilityResources(
 	if found && value != nil {
 		return unstructured.SetNestedField(desired.Object, runtime.DeepCopyJSONValue(value), "spec", "resources")
 	}
-	return nil
-}
-
-// RemoveDeploymentResources removes user-owned fields before patching.
-func RemoveDeploymentResources(object *unstructured.Unstructured) error {
-	containers, err := containers(object)
-	if err != nil {
-		return err
-	}
-	for _, value := range containers {
-		container, ok := value.(map[string]any)
-		if !ok {
-			return ErrFieldNotMap
-		}
-		delete(container, "resources")
-	}
-	unstructured.RemoveNestedField(object.Object, "spec", "replicas")
 	return nil
 }
 
@@ -203,16 +185,15 @@ func applyCoreCustomizer(
 	return nil
 }
 
-func patchDeploymentCustomizer(
-	ctx context.Context,
-	kubernetesClient client.Client,
+func applyDeploymentCustomizer(
+	_ context.Context,
+	_ client.Client,
 	options Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
-	_, _ = ctx, kubernetesClient
 	if existing == nil || resources.HasAnnotation(existing, options.ManagedAnnotation, "true") {
 		return nil
 	}
-	return RemoveDeploymentResources(desired)
+	return MergeDeployments(existing, desired)
 }

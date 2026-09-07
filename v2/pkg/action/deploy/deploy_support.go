@@ -2,14 +2,12 @@ package deploy
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"slices"
 
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
@@ -53,7 +51,7 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if fieldOwner == "" {
 		return false, ErrFieldOwner
 	}
-	deployed, err := a.write(ctx, values.Client, desired, current, fieldOwner)
+	deployed, err := a.apply(ctx, values.Client, desired, current, fieldOwner)
 	if err != nil {
 		return false, err
 	}
@@ -107,41 +105,14 @@ func (a *Action) shouldSkip(
 	return a.cache.Has(current, desired)
 }
 
-func (a *Action) write(
+func (a *Action) apply(
 	ctx context.Context,
 	kubernetesClient client.Client,
 	desired *unstructured.Unstructured,
 	current *unstructured.Unstructured,
 	fieldOwner string,
 ) (*unstructured.Unstructured, error) {
-	switch a.options.Mode {
-	case ModePatch:
-		return a.writePatch(ctx, kubernetesClient, desired, current, fieldOwner)
-	case ModeSSA:
-		return a.writeSSA(ctx, kubernetesClient, desired, current, fieldOwner)
-	default:
-		return nil, fmt.Errorf("%w: %d", ErrUnsupportedMode, a.options.Mode)
-	}
-}
-
-func (a *Action) writeSSA(
-	ctx context.Context,
-	kubernetesClient client.Client,
-	desired *unstructured.Unstructured,
-	current *unstructured.Unstructured,
-	fieldOwner string,
-) (*unstructured.Unstructured, error) {
-	var err error
-	if current != nil && !resources.HasAnnotation(current, a.options.ManagedAnnotation, "true") {
-		if merge := a.options.MergeStrategies[desired.GroupVersionKind()]; merge != nil {
-			err = merge(current, desired)
-			if err != nil {
-				return nil, fmt.Errorf("merge %s: %w", desired.GroupVersionKind(), err)
-			}
-		}
-	}
-
-	err = a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
+	err := a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
 		ctx,
 		kubernetesClient,
 		a.options,
@@ -151,6 +122,7 @@ func (a *Action) writeSSA(
 	if err != nil {
 		return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
 	}
+
 	err = resources.Apply(
 		ctx,
 		kubernetesClient,
@@ -161,48 +133,6 @@ func (a *Action) writeSSA(
 	if err != nil {
 		return nil, err
 	}
-	return desired, nil
-}
 
-func (a *Action) writePatch(
-	ctx context.Context,
-	kubernetesClient client.Client,
-	desired *unstructured.Unstructured,
-	current *unstructured.Unstructured,
-	fieldOwner string,
-) (*unstructured.Unstructured, error) {
-	var err error
-	err = a.options.PatchCustomizers[desired.GroupVersionKind()].Apply(
-		ctx,
-		kubernetesClient,
-		a.options,
-		desired,
-		current,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("patch customizer %s: %w", desired.GroupVersionKind(), err)
-	}
-	if current == nil {
-		err = kubernetesClient.Create(ctx, desired)
-		if err != nil {
-			return nil, fmt.Errorf("create %s/%s: %w", desired.GetNamespace(), desired.GetName(), err)
-		}
-		return desired, nil
-	}
-	var data []byte
-	data, err = json.Marshal(desired)
-	if err != nil {
-		return nil, fmt.Errorf("marshal patch %s/%s: %w", desired.GetNamespace(), desired.GetName(), err)
-	}
-	err = kubernetesClient.Patch(
-		ctx,
-		current,
-		client.RawPatch(types.ApplyPatchType, data),
-		client.ForceOwnership,
-		client.FieldOwner(fieldOwner),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("patch %s/%s: %w", desired.GetNamespace(), desired.GetName(), err)
-	}
-	return current, nil
+	return desired, nil
 }
