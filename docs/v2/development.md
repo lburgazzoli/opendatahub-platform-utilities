@@ -14,6 +14,11 @@ constraints as the original implementation.
   `docs/v2/findings.md`.
 - Complete and validate one task before committing it. Each completed task
   gets its own focused commit; do not mix unrelated task work.
+- Before committing each task, make the implementation and its tests readable:
+  separate logical setup, execution, error-handling, synchronization, and
+  assertion blocks with blank lines, and remove dense or misleading formatting.
+  Keep an error-producing statement directly adjacent to its `if err != nil`
+  check; place blank lines around the complete error-handling block instead.
 
 ## Go and file layout
 
@@ -38,6 +43,9 @@ constraints as the original implementation.
 - Add a helper function only when it has a meaningful reuse or abstraction
   boundary; inline one-off calls and values when a helper would merely hide a
   single operation.
+- Keep Go code highly readable: separate guard clauses, independent
+  computations, error checks, lock sections, and return statements with blank
+  lines. Do not compress several logical operations into one dense block.
 - Before implementing a method or function, check whether the same behavior
   already exists in this repository or in the Go standard library,
   controller-runtime, client-go, or Kubernetes APIs. Reuse existing behavior
@@ -47,6 +55,23 @@ constraints as the original implementation.
 - Generic deploy customizers are defaults. A caller-provided per-GVK
   customizer replaces the default; compose built-in behavior explicitly when
   a resource needs both core and resource-specific customization.
+- `resources.Accessor` iteration yields borrowed objects. Actions must deep-copy
+  objects before normalization or decoration and publish the replacement
+  collection only after preparation succeeds. Use `Len` plus `All` when a
+  private list needs capacity, and append iterator results instead of relying
+  on caller-visible indexes.
+- Deploy cache fingerprints must be taken after ownership and customizer
+  changes, but before SSA mutates the desired object. Cache insertion must use
+  the live object returned by a fresh lookup so its resource version matches
+  the next cache lookup.
+- A public cache type must have an exported constructor. Do not leave public
+  option fields or constructors that are not consumed by the implementation.
+- The managed-resource opt-out annotation is presence-based in v2: any
+  existing object carrying the configured key is skipped. Keep this behavior
+  explicit in comments and tests.
+- Deployment resource merging intentionally preserves the legacy behavior,
+  even when that behavior prevents explicit desired resource changes. Treat it
+  as compatibility policy and do not “correct” it during cleanup work.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.

@@ -65,8 +65,11 @@ buildable; the v2 runtime must not depend on it.
   sections.
 - [x] Local adversarial pass corrected the renderer-to-pipeline dependency in
   T13 and the task graph.
-- [ ] The requested `sol-high` review report was not returned in this run;
-  T17 remains mandatory before accepting the v2 implementation.
+- [x] `sol-high` completed the deploy-focused adversarial review for
+  architecture, clarity, cleanliness, and performance.
+- [x] Accepted deploy findings were remediated by focused commits
+  `765920c`, `19d6058`, and `ff6ee84`; intentional legacy Deployment merging
+  and unsupported legacy-owner cleanup were left unchanged.
 
 ## Completion record
 
@@ -86,5 +89,6 @@ buildable; the v2 runtime must not depend on it.
 - [x] T07 action error contract committed.
 - [x] T08 action pipeline committed.
 - [x] T09 deploy action committed.
+- [x] Deploy-focused adversarial review and remediation committed.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
