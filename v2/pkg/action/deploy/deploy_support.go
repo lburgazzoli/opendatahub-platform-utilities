@@ -28,7 +28,7 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if err != nil {
 		return false, err
 	}
-	if current != nil && resources.GetAnnotation(current, a.options.ManagedAnnotation) == "false" {
+	if current != nil && resources.HasAnnotation(current, a.options.ManagedAnnotation, "false") {
 		return false, nil
 	}
 
@@ -133,7 +133,7 @@ func (a *Action) writeSSA(
 	fieldOwner string,
 ) (*unstructured.Unstructured, error) {
 	var err error
-	if current != nil && resources.GetAnnotation(current, a.options.ManagedAnnotation) != "true" {
+	if current != nil && !resources.HasAnnotation(current, a.options.ManagedAnnotation, "true") {
 		if merge := a.options.MergeStrategies[desired.GroupVersionKind()]; merge != nil {
 			err = merge(current, desired)
 			if err != nil {

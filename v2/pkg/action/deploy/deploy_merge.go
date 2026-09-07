@@ -210,7 +210,7 @@ func patchDeploymentCustomizer(
 	existing *unstructured.Unstructured,
 ) error {
 	_, _ = ctx, kubernetesClient
-	if existing == nil || resources.GetAnnotation(existing, action.options.ManagedAnnotation) == "true" {
+	if existing == nil || resources.HasAnnotation(existing, action.options.ManagedAnnotation, "true") {
 		return nil
 	}
 	return RemoveDeploymentResources(desired)
