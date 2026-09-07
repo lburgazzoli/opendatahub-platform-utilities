@@ -60,10 +60,12 @@ constraints as the original implementation.
   collection only after preparation succeeds. Use `Len` plus `All` when a
   private list needs capacity, and append iterator results instead of relying
   on caller-visible indexes.
-- Deploy cache fingerprints must be taken after ownership and customizer
-  changes, but before SSA mutates the desired object. Cache insertion must use
-  the live object returned by a fresh lookup so its resource version matches
-  the next cache lookup.
+- Deploy looks up the current object once per desired resource. Reuse that
+  object for skip checks, customizers, and cache lookup; do not add another
+  lookup only to record a cache entry. Take the cache fingerprint after
+  ownership and customizer changes, but before SSA mutates the desired object.
+  `resources.Apply` updates the desired object, which is then used as the
+  deployed cache object.
 - A public cache type must have an exported constructor. Do not leave public
   option fields or constructors that are not consumed by the implementation.
 - The managed-resource opt-out annotation is presence-based in v2: any

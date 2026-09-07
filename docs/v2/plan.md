@@ -68,8 +68,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] `sol-high` completed the deploy-focused adversarial review for
   architecture, clarity, cleanliness, and performance.
 - [x] Accepted deploy findings were remediated by focused commits
-  `765920c`, `19d6058`, and `ff6ee84`; intentional legacy Deployment merging
-  and unsupported legacy-owner cleanup were left unchanged.
+  `765920c`, `19d6058`, `ff6ee84`, and `1d5f7d2`; intentional legacy
+  Deployment merging and unsupported legacy-owner cleanup were left unchanged.
 
 ## Completion record
 
@@ -90,5 +90,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] T08 action pipeline committed.
 - [x] T09 deploy action committed.
 - [x] Deploy-focused adversarial review and remediation committed.
+- [x] Deploy lifecycle simplified to one current-object lookup per resource in
+  `1d5f7d2`; focused tests verify the lookup/apply counts.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
