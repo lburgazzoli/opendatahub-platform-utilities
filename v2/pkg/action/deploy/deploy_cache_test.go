@@ -46,4 +46,5 @@ func TestRunUsesCacheForIdenticalDesiredResources(t *testing.T) {
 	g.Expect(result.Applied).Should(Equal(0))
 	g.Expect(result.Skipped).Should(Equal(1))
 	g.Expect(kubernetesClient.applyCalls).Should(Equal(1))
+	g.Expect(kubernetesClient.getCalls).Should(Equal(2))
 }

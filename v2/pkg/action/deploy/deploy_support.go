@@ -26,9 +26,6 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if err != nil {
 		return false, err
 	}
-	if current != nil && resources.HasAnnotation(current, a.options.ManagedAnnotation) {
-		return false, nil
-	}
 
 	skip, err := a.shouldSkip(current, desired)
 	if err != nil {
@@ -71,23 +68,22 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		}
 	}
 
-	cacheDesired := desired.DeepCopy()
+	var cacheDesired *unstructured.Unstructured
+	if a.cache != nil {
+		cacheDesired = desired.DeepCopy()
+	}
 
-	err = a.apply(ctx, values.Client, desired, fieldOwner)
-	if err != nil {
+	if err := resources.Apply(
+		ctx,
+		values.Client,
+		desired,
+		client.FieldOwner(fieldOwner),
+	); err != nil {
 		return false, err
 	}
 
 	if a.cache != nil {
-		deployed, lookupErr := a.lookupCurrent(ctx, values.Client, desired)
-		switch {
-		case lookupErr != nil:
-			return false, lookupErr
-		case deployed == nil:
-			return false, fmt.Errorf("lookup applied %s/%s: object not found", desired.GetNamespace(), desired.GetName())
-		default:
-			err = a.cache.Add(deployed, cacheDesired)
-		}
+		err = a.cache.Add(desired, cacheDesired)
 		if err != nil {
 			return false, fmt.Errorf("cache deployed resource: %w", err)
 		}
@@ -128,6 +124,8 @@ func (a *Action) shouldSkip(
 	switch {
 	case current == nil:
 		return false, nil
+	case resources.HasAnnotation(current, a.options.ManagedAnnotation):
+		return true, nil
 	case !current.GetDeletionTimestamp().IsZero():
 		if a.cache == nil {
 			return true, nil
@@ -140,23 +138,4 @@ func (a *Action) shouldSkip(
 	default:
 		return false, nil
 	}
-}
-
-func (a *Action) apply(
-	ctx context.Context,
-	kubernetesClient client.Client,
-	desired *unstructured.Unstructured,
-	fieldOwner string,
-) error {
-	err := resources.Apply(
-		ctx,
-		kubernetesClient,
-		desired,
-		client.FieldOwner(fieldOwner),
-	)
-	if err != nil {
-		return err
-	}
-
-	return nil
 }

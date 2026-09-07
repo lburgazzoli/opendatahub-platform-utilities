@@ -10,6 +10,18 @@ import (
 type countingClient struct {
 	client.Client
 	applyCalls int
+	getCalls   int
+}
+
+func (c *countingClient) Get(
+	ctx context.Context,
+	key client.ObjectKey,
+	object client.Object,
+	options ...client.GetOption,
+) error {
+	c.getCalls++
+
+	return c.Client.Get(ctx, key, object, options...)
 }
 
 func (c *countingClient) Apply(
