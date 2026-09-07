@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **documentation task complete; v2 implementation pending**
+Status: **implementation in progress; T00–T02 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -76,5 +76,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] Parallel execution and dependency rules documented.
 - [x] Kind-engine isolation requirements documented.
 - [x] Adversarial review and remediation gates documented.
-- [ ] V2 implementation tasks executed.
+- [x] T00 consumer audit committed.
+- [x] T01 isolated Kind engine committed.
+- [x] T02 v2 module foundation committed.
+- [ ] T03–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.

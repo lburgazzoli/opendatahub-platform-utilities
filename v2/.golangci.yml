@@ -1,0 +1,51 @@
+version: "2"
+
+linters:
+  default: all
+  enable:
+    - gomodguard_v2
+  disable:
+    - depguard
+    - exhaustruct
+    - gomodguard
+    - godox
+    - ireturn
+    - mnd
+    - nlreturn
+    - nonamedreturns
+    - testpackage
+    - varnamelen
+    - wrapcheck
+    - wsl
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+    exhaustive:
+      default-signifies-exhaustive: true
+    goconst:
+      ignore-string-values:
+        - '^(containers|replicas|resources|spec|template)$'
+    govet:
+      enable-all: true
+    importas:
+      no-unaliased: true
+    revive:
+      rules:
+        - name: unexported-return
+          disabled: true
+
+  exclusions:
+    rules:
+      - path: '(.+)_test\.go'
+        linters:
+          - goconst
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0
