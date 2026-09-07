@@ -94,5 +94,7 @@ buildable; the v2 runtime must not depend on it.
   `1d5f7d2`; focused tests verify the lookup/apply counts.
 - [x] Deploy orchestration split into lookup, ownership, customization, and
   apply phases in `b03c277`.
+- [x] One-use ownership policy helper inlined with explicit switch cases in
+  `80e008c`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
