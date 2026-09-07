@@ -19,7 +19,7 @@ type cacheEntry struct {
 
 //nolint:govet // mutex and TTL are intentionally adjacent to the cache map.
 type Cache struct {
-	mu      sync.Mutex
+	mu      sync.RWMutex
 	ttl     time.Duration
 	entries map[string]cacheEntry
 }
@@ -74,14 +74,24 @@ func (cache *Cache) Has(
 	if err != nil {
 		return false, err
 	}
-	cache.mu.Lock()
-	defer cache.mu.Unlock()
+	cache.mu.RLock()
 	entry, found := cache.entries[key]
-	if !found || time.Since(entry.created) >= cache.ttl {
-		delete(cache.entries, key)
+	if !found {
+		cache.mu.RUnlock()
 		return false, nil
 	}
-	return true, nil
+	if time.Since(entry.created) < cache.ttl {
+		cache.mu.RUnlock()
+		return true, nil
+	}
+	cache.mu.RUnlock()
+
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if current, stillPresent := cache.entries[key]; stillPresent && time.Since(current.created) >= cache.ttl {
+		delete(cache.entries, key)
+	}
+	return false, nil
 }
 
 func (cache *Cache) Delete(
