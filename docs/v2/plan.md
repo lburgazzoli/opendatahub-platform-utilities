@@ -97,5 +97,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] One-use ownership policy helper inlined with explicit switch cases in
   `80e008c`.
 - [x] Deploy phase boundaries documented in `70c8cc6`.
+- [x] Deploy allocation benchmarks split into preparation, cache, apply, and
+  no-op-client layers in `409b1d8`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
