@@ -15,8 +15,10 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
-//nolint:cyclop // deployment policy has ordered Kubernetes safety branches.
+// deployOne processes one desired object through lookup, policy, customization,
+// cache evaluation, and server-side apply.
 func (a *Action) deployOne(ctx context.Context, values RunOptions, object client.Object) (bool, error) {
+	// Resolve the desired and current objects before applying any policy.
 	desired, err := resources.ToUnstructured(object)
 	if err != nil {
 		return false, err
@@ -37,14 +39,17 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		return false, nil
 	}
 
+	// Add the controller owner when the resource policy permits ownership.
 	if err := a.own(values, desired); err != nil {
 		return false, err
 	}
 
+	// Apply the resource-specific customization using the current object.
 	if err := a.customize(ctx, values.Client, desired, current); err != nil {
 		return false, err
 	}
 
+	// Skip SSA when the desired state is already represented by the cache.
 	if a.cache != nil {
 		skip, err = a.cache.Has(current, desired)
 		if err != nil {
@@ -55,15 +60,18 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		}
 	}
 
+	// Keep the pre-apply desired state as the cache fingerprint.
 	var cacheDesired *unstructured.Unstructured
 	if a.cache != nil {
 		cacheDesired = desired.DeepCopy()
 	}
 
+	// Apply the fully prepared object with the resolved field owner.
 	if err := a.apply(ctx, values.Client, values.Owner, desired); err != nil {
 		return false, err
 	}
 
+	// Record the post-apply desired object for future cache checks.
 	if a.cache != nil {
 		err = a.cache.Add(desired, cacheDesired)
 		if err != nil {
