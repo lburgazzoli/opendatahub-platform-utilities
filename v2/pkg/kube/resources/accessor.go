@@ -26,6 +26,7 @@ type TransformFunc func(index int, object client.Object) (client.Object, error)
 // Accessor exposes explicit resource collection operations.
 type Accessor interface {
 	All() iter.Seq2[int, client.Object]
+	Len() int
 	Get() List
 	Set(objects List)
 	SetAt(index int, object client.Object) error
@@ -53,6 +54,11 @@ func (c *Collection) All() iter.Seq2[int, client.Object] {
 			}
 		}
 	}
+}
+
+// Len returns the number of objects in the collection.
+func (c *Collection) Len() int {
+	return len(c.objects)
 }
 
 // Get returns a shallow copy of the collection list.

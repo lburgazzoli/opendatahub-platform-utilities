@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
@@ -29,6 +30,9 @@ func (a *Action) Validate() error {
 	}
 	if a.options.FieldOwner == nil {
 		return ErrFieldOwner
+	}
+	if a.options.Sort == nil {
+		return ErrSort
 	}
 	return nil
 }
@@ -77,20 +81,14 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 func (a *Action) prepare(values RunOptions) (resources.List, error) {
 	seen := sets.New[resources.Identity]()
 
-	objects := values.Resources.Get()
-	for _, object := range objects {
-		_, err := resources.EnsureGroupVersionKind(values.Client.Scheme(), object)
-		if err != nil {
-			return nil, fmt.Errorf("normalize resource: %w", err)
+	objects := make(resources.List, 0, values.Resources.Len())
+	for _, res := range values.Resources.All() {
+		if res == nil {
+			return nil, fmt.Errorf("identify resource: %w", resources.ErrNilObject)
 		}
 
-		resources.SetLabels(object, a.options.Labels)
-		resources.SetAnnotations(object, a.options.Annotations)
-
-		err = a.options.MetadataPolicy.Apply(object, values.Owner)
-		if err != nil {
-			return nil, fmt.Errorf("decorate %s/%s: %w", object.GetNamespace(), object.GetName(), err)
-		}
+		object := res.DeepCopyObject().(client.Object)
+		objects = append(objects, object)
 
 		identity, err := resources.IdentityOf(object, values.Client.Scheme())
 		switch {
@@ -101,9 +99,17 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 		default:
 			seen.Insert(identity)
 		}
+
+		resources.SetLabels(object, a.options.Labels)
+		resources.SetAnnotations(object, a.options.Annotations)
+
+		err = a.options.MetadataPolicy.Apply(object, values.Owner)
+		if err != nil {
+			return nil, fmt.Errorf("decorate %s/%s %s: %w", object.GetNamespace(), object.GetName(), identity.GVK, err)
+		}
 	}
 
-	objects = a.options.Sort(objects)
+	a.options.Sort(objects)
 	values.Resources.Set(objects)
 
 	return objects, nil

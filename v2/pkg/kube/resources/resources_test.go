@@ -44,6 +44,18 @@ func TestCollectionPreservesOrderAndUsesExplicitWriteBack(t *testing.T) {
 	g.Expect(seen).Should(ConsistOf("replacement"))
 }
 
+func TestCollectionLen(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	collection := resources.New(resources.List{
+		&metav1.PartialObjectMetadata{},
+		&metav1.PartialObjectMetadata{},
+	})
+
+	g.Expect(collection.Len()).Should(Equal(2))
+}
+
 func TestCollectionTransformIsAtomic(t *testing.T) {
 	t.Parallel()
 
