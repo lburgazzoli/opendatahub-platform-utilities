@@ -18,13 +18,13 @@ type aggregation struct {
 	plainTerminal    bool
 }
 
-func visitError(value error, actionName string, state *aggregation) {
+func visitError(value error, reported error, actionName string, state *aggregation) {
 	if value == nil {
 		return
 	}
 
 	if semantic, ok := asActionError(value); ok {
-		handleSemanticError(semantic, actionName, value, state)
+		handleSemanticError(semantic, actionName, reported, state)
 
 		return
 	}
@@ -32,12 +32,12 @@ func visitError(value error, actionName string, state *aggregation) {
 	switch unwrapped := value.(type) { //nolint:errorlint // Visit one error-tree node at a time.
 	case interface{ Unwrap() []error }:
 		for _, cause := range unwrapped.Unwrap() {
-			visitError(cause, actionName, state)
+			visitError(cause, reported, actionName, state)
 		}
 	case interface{ Unwrap() error }:
-		visitError(unwrapped.Unwrap(), actionName, state)
+		visitError(unwrapped.Unwrap(), reported, actionName, state)
 	default:
-		setTerminal(fmt.Errorf("action %s: %w", actionName, value), 0, false, state)
+		setTerminal(fmt.Errorf("action %s: %w", actionName, reported), 0, false, state)
 	}
 }
 

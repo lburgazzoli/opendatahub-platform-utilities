@@ -91,7 +91,7 @@ func (e ActionError) Add(actionName string, returned error) (ActionError, bool) 
 		typeOf: e.errorType,
 		delay:  e.requeueAfter,
 	}
-	visitError(returned, actionName, &state)
+	visitError(returned, returned, actionName, &state)
 
 	if state.terminal != nil {
 		if state.plainTerminal {
