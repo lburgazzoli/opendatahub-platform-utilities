@@ -46,16 +46,13 @@ func OwnerRefFrom(owner client.Object, scheme *runtime.Scheme) (metav1.OwnerRefe
 		return metav1.OwnerReference{}, ErrOwnerGVK
 	}
 
-	controller := true
-	blockOwnerDeletion := true
-
 	return metav1.OwnerReference{
 		APIVersion:         gvks[0].GroupVersion().String(),
 		Kind:               gvks[0].Kind,
 		Name:               owner.GetName(),
 		UID:                owner.GetUID(),
-		Controller:         &controller,
-		BlockOwnerDeletion: &blockOwnerDeletion,
+		Controller:         new(true),
+		BlockOwnerDeletion: new(true),
 	}, nil
 }
 
