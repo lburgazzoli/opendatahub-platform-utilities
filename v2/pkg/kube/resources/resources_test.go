@@ -138,7 +138,13 @@ func TestApplyCreatesObjectAndApplyStatusWritesStatus(t *testing.T) {
 		ResourceVersion: "server-owned",
 		ManagedFields:   []metav1.ManagedFieldsEntry{{Manager: "server"}},
 	}, Data: map[string]string{"key": "value"}}
-	g.Expect(resources.Apply(t.Context(), kubernetesClient, configMap, client.FieldOwner("test"))).Should(Succeed())
+	g.Expect(resources.Apply(
+		t.Context(),
+		kubernetesClient,
+		configMap,
+		client.FieldOwner("test"),
+		client.ForceOwnership,
+	)).Should(Succeed())
 
 	storedConfigMap := &corev1.ConfigMap{}
 	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKey{Name: "config"}, storedConfigMap)).Should(Succeed())
@@ -153,7 +159,13 @@ func TestApplyCreatesObjectAndApplyStatusWritesStatus(t *testing.T) {
 	}
 	g.Expect(kubernetesClient.Create(t.Context(), deployment)).Should(Succeed())
 	deployment.Status.AvailableReplicas = 1
-	g.Expect(resources.ApplyStatus(t.Context(), kubernetesClient, deployment, client.FieldOwner("test"))).Should(Succeed())
+	g.Expect(resources.ApplyStatus(
+		t.Context(),
+		kubernetesClient,
+		deployment,
+		client.FieldOwner("test"),
+		client.ForceOwnership,
+	)).Should(Succeed())
 
 	storedDeployment := &appsv1.Deployment{}
 	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKey{Name: "deployment"}, storedDeployment)).Should(Succeed())
@@ -180,7 +192,13 @@ func TestApplyStatusReturnsNotFound(t *testing.T) {
 	})
 	deployment := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: "missing"}}
 
-	g.Expect(resources.ApplyStatus(t.Context(), kubernetesClient, deployment, client.FieldOwner("test"))).Should(
+	g.Expect(resources.ApplyStatus(
+		t.Context(),
+		kubernetesClient,
+		deployment,
+		client.FieldOwner("test"),
+		client.ForceOwnership,
+	)).Should(
 		MatchError(ContainSubstring("not found")),
 	)
 }

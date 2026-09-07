@@ -29,8 +29,6 @@ func Apply(
 	unstructured.RemoveNestedField(u.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(u.Object, "status")
 
-	options = append(options, client.ForceOwnership)
-
 	if err := cli.Apply(
 		ctx,
 		client.ApplyConfigurationFromUnstructured(u),
@@ -70,8 +68,6 @@ func ApplyStatus(
 
 	unstructured.RemoveNestedField(u.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(u.Object, "metadata", "resourceVersion")
-
-	options = append(options, client.ForceOwnership)
 
 	if err := cli.Status().Apply(
 		ctx,

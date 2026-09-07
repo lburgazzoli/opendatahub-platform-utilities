@@ -157,6 +157,7 @@ func BenchmarkApply(b *testing.B) {
 				kubernetesClient,
 				desired,
 				client.FieldOwner("benchmark"),
+				client.ForceOwnership,
 			); err != nil {
 				b.Fatal(err)
 			}
@@ -170,6 +171,7 @@ func BenchmarkApply(b *testing.B) {
 					kubernetesClient,
 					desired,
 					client.FieldOwner("benchmark"),
+					client.ForceOwnership,
 				); err != nil {
 					b.Fatal(err)
 				}
