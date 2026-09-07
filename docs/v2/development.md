@@ -75,6 +75,15 @@ constraints as the original implementation.
 - Low-level apply helpers must forward caller-supplied apply options without
   injecting ownership policy. Callers that require forced SSA ownership pass
   `client.ForceOwnership` explicitly.
+- GC must keep the deletion boundary explicit: filter by the shared metadata
+  selector, verify the exact controller owner reference, honor the managed
+  opt-out annotation and unremovable GVKs, then compare against desired
+  identities. Discovery and list failures for unavailable API types may be
+  skipped only through explicit `switch` cases; authorization is checked before
+  listing.
+- Dynamic discovery caches must serialize refresh and invalidation so an event
+  cannot be overwritten by a refresh that started before the event. Static
+  discovery must remain usable without controller-manager wiring.
 - A public cache type must have an exported constructor. Do not leave public
   option fields or constructors that are not consumed by the implementation.
 - The managed-resource opt-out annotation is presence-based in v2: any

@@ -105,5 +105,8 @@ buildable; the v2 runtime must not depend on it.
   redundant apply deep copy was removed in `7a351f0`.
 - [x] SSA ownership policy is explicit at callers, and `deployOne` is colocated
   with run orchestration in `210a84b`.
-- [ ] T10–T20 implementation and validation tasks executed.
+- [x] T10 GC action implemented with policy-aware desired-set cleanup,
+  authorization filtering, static/dynamic discovery, and focused tests in
+  `8d9639e`.
+- [ ] T11–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
