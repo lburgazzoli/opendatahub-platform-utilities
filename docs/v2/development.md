@@ -60,6 +60,12 @@ constraints as the original implementation.
   collection only after preparation succeeds. Use `Len` plus `All` when a
   private list needs capacity, and append iterator results instead of relying
   on caller-visible indexes.
+- `resources.Accessor` stores `unstructured.Unstructured` values. Producers
+  convert typed objects before publishing them to the accessor; deploy must
+  consume the published unstructured values directly and must not add a
+  typed-to-unstructured round trip.
+- Prefer standard-library helpers over one-line wrappers, such as
+  `slices.Clone` instead of a local slice-cloning helper.
 - Deploy looks up the current object once per desired resource. Reuse that
   object for skip checks, customizers, and cache lookup; do not add another
   lookup only to record a cache entry. Take the cache fingerprint after
@@ -77,6 +83,9 @@ constraints as the original implementation.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.
+- Benchmark changes at the operation boundary that matters. Keep direct typed
+  versus unstructured apply benchmarks separate from full fake-client runs so
+  client/server-emulation overhead is not mistaken for deploy-action overhead.
 
 ## Tests and integration infrastructure
 

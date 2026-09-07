@@ -100,5 +100,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] Deploy allocation benchmarks split into preparation, cache, apply, and
   no-op-client layers in `409b1d8`.
 - [x] Typed-versus-unstructured SSA and Run benchmarks added in `36a1a7b`.
+- [x] Resource access and deploy now use unstructured values end to end;
+  typed apply remains supported only at the shared resource boundary, and the
+  redundant apply deep copy was removed in `7a351f0`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
