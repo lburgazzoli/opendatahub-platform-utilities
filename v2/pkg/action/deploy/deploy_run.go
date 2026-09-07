@@ -78,10 +78,10 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 	seen := sets.New[resources.Identity]()
 
 	objects := values.Resources.Get()
-	for index, object := range objects {
+	for _, object := range objects {
 		_, err := resources.EnsureGroupVersionKind(values.Client.Scheme(), object)
 		if err != nil {
-			return nil, fmt.Errorf("normalize resource %d: %w", index, err)
+			return nil, fmt.Errorf("normalize resource: %w", err)
 		}
 
 		resources.SetLabels(object, a.options.Labels)
@@ -93,14 +93,14 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 		}
 
 		identity, err := resources.IdentityOf(object, values.Client.Scheme())
-		if err != nil {
-			return nil, fmt.Errorf("identify resource %d: %w", index, err)
-		}
-		if seen.Has(identity) {
+		switch {
+		case err != nil:
+			return nil, fmt.Errorf("identify resource: %w", err)
+		case seen.Has(identity):
 			return nil, fmt.Errorf("%w: %s/%s %s", ErrDuplicateIdentity, identity.Namespace, identity.Name, identity.GVK)
+		default:
+			seen.Insert(identity)
 		}
-
-		seen.Insert(identity)
 	}
 
 	objects = a.options.Sort(objects)
