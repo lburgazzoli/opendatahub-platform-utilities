@@ -11,6 +11,7 @@ import (
 	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	platformmetadata "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 )
 
 // CacheOptions configures the optional process-local deploy cache.
@@ -32,7 +33,6 @@ type Options struct {
 	Cache                *CacheOptions
 	ExcludeFromOwnership []schema.GroupVersionKind
 	ManagedAnnotation    string
-	LegacyOwners         []schema.GroupVersionKind
 	ApplyCustomizers     map[schema.GroupVersionKind]CustomizerFunc
 }
 
@@ -65,9 +65,6 @@ func (o Options) ApplyTo(target *Options) {
 	target.ContinueOnError = o.ContinueOnError
 	if o.ManagedAnnotation != "" {
 		target.ManagedAnnotation = o.ManagedAnnotation
-	}
-	if o.LegacyOwners != nil {
-		target.LegacyOwners = append([]schema.GroupVersionKind(nil), o.LegacyOwners...)
 	}
 	if o.ApplyCustomizers != nil {
 		target.ApplyCustomizers = maps.Clone(o.ApplyCustomizers)
@@ -142,10 +139,12 @@ func WithAnnotations(values map[string]string) Option {
 	})
 }
 
-// WithSort replaces the apply-order strategy.
+// WithSort replaces the apply-order strategy. A nil sorter is ignored.
 func WithSort(sort SortFunc) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
-		options.Sort = sort
+		if sort != nil {
+			options.Sort = sort
+		}
 	})
 }
 
@@ -171,10 +170,13 @@ func WithContinueOnError(enabled bool) Option {
 	})
 }
 
-// WithManagedAnnotation changes the managed-resource opt-out annotation.
+// WithManagedAnnotation changes the managed-resource opt-out annotation. An
+// empty key is ignored.
 func WithManagedAnnotation(key string) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
-		options.ManagedAnnotation = key
+		if key != "" {
+			options.ManagedAnnotation = key
+		}
 	})
 }
 
@@ -182,13 +184,6 @@ func WithManagedAnnotation(key string) Option {
 func WithExcludeFromOwnership(gvks ...schema.GroupVersionKind) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.ExcludeFromOwnership = append(options.ExcludeFromOwnership, gvks...)
-	})
-}
-
-// WithLegacyOwners permits replacement of matching legacy owner references.
-func WithLegacyOwners(gvks ...schema.GroupVersionKind) Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		options.LegacyOwners = append(options.LegacyOwners, gvks...)
 	})
 }
 
@@ -209,11 +204,15 @@ func defaultOptions() Options {
 			return strings.ToLower(owner.GetObjectKind().GroupVersionKind().Kind)
 		},
 		Sort:                 ApplyOrder,
-		ManagedAnnotation:    "opendatahub.io/managed",
+		ManagedAnnotation:    annotations.ManagedByODHOperator,
 		ExcludeFromOwnership: []schema.GroupVersionKind{kubegvk.Namespace},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			kubegvk.ClusterRole: applyAggregatedClusterRoleCustomizer,
-			kubegvk.Deployment:  applyDeploymentCustomizer,
+			kubegvk.ClusterRole:            applyAggregatedClusterRoleCustomizer,
+			kubegvk.Deployment:             applyDeploymentCustomizer,
+			kubegvk.MonitoringStack:        applyObservabilityCustomizer,
+			kubegvk.TempoMonolithic:        applyObservabilityCustomizer,
+			kubegvk.TempoStack:             applyObservabilityCustomizer,
+			kubegvk.OpenTelemetryCollector: applyObservabilityCustomizer,
 		},
 	}
 }

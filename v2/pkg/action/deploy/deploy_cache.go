@@ -24,14 +24,17 @@ type Cache struct {
 	entries map[string]cacheEntry
 }
 
-func newCache(options *CacheOptions) *Cache {
+// NewCache creates a process-local deploy cache from optional settings.
+func NewCache(options *CacheOptions) *Cache {
 	if options == nil {
 		return nil
 	}
+
 	ttl := options.TTL
 	if ttl <= 0 {
 		ttl = defaultCacheTTL
 	}
+
 	return &Cache{ttl: ttl, entries: make(map[string]cacheEntry)}
 }
 
@@ -53,13 +56,16 @@ func (cache *Cache) Add(
 	if deployed == nil || desired == nil {
 		return nil
 	}
+
 	key, err := cache.key(deployed, desired)
 	if err != nil {
 		return err
 	}
+
 	cache.mu.Lock()
 	cache.entries[key] = cacheEntry{created: time.Now()}
 	cache.mu.Unlock()
+
 	return nil
 }
 
@@ -70,27 +76,33 @@ func (cache *Cache) Has(
 	if deployed == nil || desired == nil {
 		return false, nil
 	}
+
 	key, err := cache.key(deployed, desired)
 	if err != nil {
 		return false, err
 	}
+
 	cache.mu.RLock()
 	entry, found := cache.entries[key]
 	if !found {
 		cache.mu.RUnlock()
+
 		return false, nil
 	}
 	if time.Since(entry.created) < cache.ttl {
 		cache.mu.RUnlock()
+
 		return true, nil
 	}
 	cache.mu.RUnlock()
 
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
-	if current, stillPresent := cache.entries[key]; stillPresent && time.Since(current.created) >= cache.ttl {
+
+	if current, ok := cache.entries[key]; ok && time.Since(current.created) >= cache.ttl {
 		delete(cache.entries, key)
 	}
+
 	return false, nil
 }
 
@@ -101,13 +113,16 @@ func (cache *Cache) Delete(
 	if deployed == nil || desired == nil {
 		return nil
 	}
+
 	key, err := cache.key(deployed, desired)
 	if err != nil {
 		return err
 	}
+
 	cache.mu.Lock()
 	delete(cache.entries, key)
 	cache.mu.Unlock()
+
 	return nil
 }
 
@@ -120,7 +135,12 @@ func (cache *Cache) key(
 		return "", fmt.Errorf("hash desired object: %w", err)
 	}
 	hash := sha256.Sum256(data)
+
 	return fmt.Sprintf("%s/%s/%s/%s/%s/%s",
-		deployed.GroupVersionKind(), deployed.GetNamespace(), deployed.GetName(),
-		deployed.GetResourceVersion(), hex.EncodeToString(hash[:]), desired.GetUID()), nil
+		deployed.GroupVersionKind(),
+		deployed.GetNamespace(),
+		deployed.GetName(),
+		deployed.GetResourceVersion(),
+		hex.EncodeToString(hash[:]), desired.GetUID(),
+	), nil
 }

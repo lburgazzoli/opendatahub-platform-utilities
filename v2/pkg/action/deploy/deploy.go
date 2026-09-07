@@ -15,6 +15,7 @@ var (
 	ErrActionRequired    = errors.New("deploy action is required")
 	ErrMetadataPolicy    = errors.New("deploy metadata policy is required")
 	ErrFieldOwner        = errors.New("deploy field owner is required")
+	ErrSort              = errors.New("deploy sort function is required")
 )
 
 // CustomizerFunc can modify an object immediately before it is applied. The
@@ -22,7 +23,6 @@ var (
 type CustomizerFunc func(
 	ctx context.Context,
 	kubernetesClient client.Client,
-	options Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error
@@ -31,7 +31,6 @@ type CustomizerFunc func(
 func (f CustomizerFunc) Apply(
 	ctx context.Context,
 	kubernetesClient client.Client,
-	options Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
@@ -39,7 +38,7 @@ func (f CustomizerFunc) Apply(
 		return nil
 	}
 
-	return f(ctx, kubernetesClient, options, desired, existing)
+	return f(ctx, kubernetesClient, desired, existing)
 }
 
 // FieldOwnerFunc resolves the SSA field manager for a run owner.
@@ -64,7 +63,7 @@ func New(values ...Option) *Action {
 
 	action := &Action{
 		options: options,
-		cache:   newCache(options.Cache),
+		cache:   NewCache(options.Cache),
 	}
 	action.validationErr = action.Validate()
 	action.validated = true

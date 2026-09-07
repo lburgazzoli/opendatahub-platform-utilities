@@ -21,41 +21,58 @@ func benchmarkRun(b *testing.B) {
 	b.Helper()
 
 	for _, count := range []int{1, 10, 100} {
-		b.Run(fmt.Sprintf("resources-%d", count), func(b *testing.B) {
-			scheme := runtime.NewScheme()
-			err := corev1.AddToScheme(scheme)
-			if err != nil {
-				b.Fatal(err)
-			}
-			owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-				Name: "owner", Namespace: "ns", UID: "owner-uid",
-			}}
-			owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
-			objects := make(resources.List, count)
-			for index := range count {
-				object := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("desired-%d", index),
-					Namespace: "ns",
+		for _, cached := range []bool{false, true} {
+			b.Run(fmt.Sprintf("resources-%d/cached-%t", count, cached), func(b *testing.B) {
+				scheme := runtime.NewScheme()
+				err := corev1.AddToScheme(scheme)
+				if err != nil {
+					b.Fatal(err)
+				}
+				owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name: "owner", Namespace: "ns", UID: "owner-uid",
 				}}
-				object.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
-				objects[index] = object
+				owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+				objects := make(resources.List, count)
+				for index := range count {
+					object := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+						Name:      fmt.Sprintf("desired-%d", index),
+						Namespace: "ns",
+					}}
+					object.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+					objects[index] = object
+				}
+				kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+				options := []deploy.Option(nil)
+			if cached {
+				options = append(options, deploy.WithCache())
 			}
-			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-			action := deploy.New()
+			action := deploy.New(options...)
 
-			b.ReportAllocs()
-			b.ResetTimer()
-			for b.Loop() {
-				collection := resources.New(objects)
-				_, err := action.Run(b.Context(), deploy.RunOptions{
+			if cached {
+				_, err = action.Run(b.Context(), deploy.RunOptions{
 					Client:    kubernetesClient,
 					Owner:     owner,
-					Resources: collection,
+					Resources: resources.New(objects),
 				})
 				if err != nil {
 					b.Fatal(err)
 				}
 			}
-		})
+
+			b.ReportAllocs()
+				b.ResetTimer()
+				for b.Loop() {
+					collection := resources.New(objects)
+					_, err := action.Run(b.Context(), deploy.RunOptions{
+						Client:    kubernetesClient,
+						Owner:     owner,
+						Resources: collection,
+					})
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+			})
+		}
 	}
 }

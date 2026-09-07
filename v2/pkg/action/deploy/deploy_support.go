@@ -38,8 +38,7 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		return false, nil
 	}
 
-	if desired.GroupVersionKind() != gvk.CustomResourceDefinition &&
-		!slices.Contains(a.options.ExcludeFromOwnership, desired.GroupVersionKind()) {
+	if a.shouldOwn(desired) {
 		desired.SetOwnerReferences(nil)
 		err = ownership.SetControllerReference(values.Owner, desired, values.Client.Scheme())
 		if err != nil {
@@ -51,18 +50,55 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if fieldOwner == "" {
 		return false, ErrFieldOwner
 	}
-	deployed, err := a.apply(ctx, values.Client, desired, current, fieldOwner)
+
+	err = a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
+		ctx,
+		values.Client,
+		desired,
+		current,
+	)
+	if err != nil {
+		return false, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
+	}
+
+	if a.cache != nil {
+		skip, err = a.cache.Has(current, desired)
+		if err != nil {
+			return false, err
+		}
+		if skip {
+			return false, nil
+		}
+	}
+
+	cacheDesired := desired.DeepCopy()
+
+	err = a.apply(ctx, values.Client, desired, fieldOwner)
 	if err != nil {
 		return false, err
 	}
+
 	if a.cache != nil {
-		err = a.cache.Add(deployed, desired)
+		deployed, lookupErr := a.lookupCurrent(ctx, values.Client, desired)
+		switch {
+		case lookupErr != nil:
+			return false, lookupErr
+		case deployed == nil:
+			return false, fmt.Errorf("lookup applied %s/%s: object not found", desired.GetNamespace(), desired.GetName())
+		default:
+			err = a.cache.Add(deployed, cacheDesired)
+		}
 		if err != nil {
 			return false, fmt.Errorf("cache deployed resource: %w", err)
 		}
 	}
 
 	return true, nil
+}
+
+func (a *Action) shouldOwn(desired *unstructured.Unstructured) bool {
+	return desired.GroupVersionKind() != gvk.CustomResourceDefinition &&
+		!slices.Contains(a.options.ExcludeFromOwnership, desired.GroupVersionKind())
 }
 
 func (a *Action) lookupCurrent(
@@ -89,7 +125,10 @@ func (a *Action) shouldSkip(
 	current *unstructured.Unstructured,
 	desired *unstructured.Unstructured,
 ) (bool, error) {
-	if current != nil && !current.GetDeletionTimestamp().IsZero() {
+	switch {
+	case current == nil:
+		return false, nil
+	case !current.GetDeletionTimestamp().IsZero():
 		if a.cache == nil {
 			return true, nil
 		}
@@ -98,41 +137,26 @@ func (a *Action) shouldSkip(
 			return false, err
 		}
 		return true, nil
-	}
-	if a.cache == nil {
+	default:
 		return false, nil
 	}
-	return a.cache.Has(current, desired)
 }
 
 func (a *Action) apply(
 	ctx context.Context,
 	kubernetesClient client.Client,
 	desired *unstructured.Unstructured,
-	current *unstructured.Unstructured,
 	fieldOwner string,
-) (*unstructured.Unstructured, error) {
-	err := a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
-		ctx,
-		kubernetesClient,
-		a.options,
-		desired,
-		current,
-	)
-	if err != nil {
-		return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
-	}
-
-	err = resources.Apply(
+) error {
+	err := resources.Apply(
 		ctx,
 		kubernetesClient,
 		desired,
-		client.ForceOwnership,
 		client.FieldOwner(fieldOwner),
 	)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return desired, nil
+	return nil
 }

@@ -9,6 +9,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
 	extensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 //nolint:gochecknoglobals // These are immutable package-level protocol values.
@@ -31,4 +32,8 @@ var (
 	ValidatingWebhookConfiguration = admissionregistrationv1.SchemeGroupVersion.WithKind("ValidatingWebhookConfiguration")
 	CustomResourceDefinition       = extensionsv1.SchemeGroupVersion.WithKind("CustomResourceDefinition")
 	Lease                          = coordinationv1.SchemeGroupVersion.WithKind("Lease")
+	MonitoringStack                = schema.GroupVersionKind{Group: "monitoring.rhobs", Version: "v1alpha1", Kind: "MonitoringStack"}
+	TempoMonolithic                = schema.GroupVersionKind{Group: "tempo.grafana.com", Version: "v1alpha1", Kind: "TempoMonolithic"}
+	TempoStack                     = schema.GroupVersionKind{Group: "tempo.grafana.com", Version: "v1alpha1", Kind: "TempoStack"}
+	OpenTelemetryCollector         = schema.GroupVersionKind{Group: "opentelemetry.io", Version: "v1beta1", Kind: "OpenTelemetryCollector"}
 )

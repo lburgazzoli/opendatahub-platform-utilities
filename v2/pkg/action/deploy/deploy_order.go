@@ -11,8 +11,10 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
-// SortFunc orders desired objects before deployment.
-type SortFunc func(resources.List) resources.List
+// SortFunc orders desired objects before deployment in place.
+type SortFunc func(resources.List)
+
+const defaultApplyRank = 60
 
 //nolint:gochecknoglobals // The rank table is immutable package configuration.
 var applyRanks = map[schema.GroupVersionKind]int{
@@ -36,19 +38,18 @@ var applyRanks = map[schema.GroupVersionKind]int{
 }
 
 // ApplyOrder orders desired objects by Kubernetes dependency rank.
-func ApplyOrder(objects resources.List) resources.List {
-	ordered := append(resources.List(nil), objects...)
-	slices.SortStableFunc(ordered, func(left client.Object, right client.Object) int {
-		leftRank := applyRank(left.GetObjectKind().GroupVersionKind())
-		rightRank := applyRank(right.GetObjectKind().GroupVersionKind())
+func ApplyOrder(objects resources.List) {
+	slices.SortStableFunc(objects, func(left client.Object, right client.Object) int {
+		leftRank, leftFound := applyRanks[left.GetObjectKind().GroupVersionKind()]
+		if !leftFound {
+			leftRank = defaultApplyRank
+		}
+
+		rightRank, rightFound := applyRanks[right.GetObjectKind().GroupVersionKind()]
+		if !rightFound {
+			rightRank = defaultApplyRank
+		}
+
 		return cmp.Compare(leftRank, rightRank)
 	})
-	return ordered
-}
-
-func applyRank(gvk schema.GroupVersionKind) int {
-	if rank, found := applyRanks[gvk]; found {
-		return rank
-	}
-	return 60
 }

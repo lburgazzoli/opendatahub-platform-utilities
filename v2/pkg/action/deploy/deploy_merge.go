@@ -167,31 +167,45 @@ func containers(object *unstructured.Unstructured) ([]any, error) {
 func applyAggregatedClusterRoleCustomizer(
 	_ context.Context,
 	_ client.Client,
-	_ Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
 	if existing == nil {
 		return nil
 	}
+
 	_, found, err := unstructured.NestedFieldNoCopy(desired.Object, "aggregationRule")
 	if err != nil {
 		return err
 	} else if found {
 		unstructured.RemoveNestedField(desired.Object, "rules")
 	}
+
 	return nil
 }
 
 func applyDeploymentCustomizer(
 	_ context.Context,
 	_ client.Client,
-	_ Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
 	if existing == nil {
 		return nil
 	}
+
 	return MergeDeployments(existing, desired)
+}
+
+func applyObservabilityCustomizer(
+	_ context.Context,
+	_ client.Client,
+	desired *unstructured.Unstructured,
+	existing *unstructured.Unstructured,
+) error {
+	if existing == nil {
+		return nil
+	}
+
+	return MergeObservabilityResources(existing, desired)
 }
