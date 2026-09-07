@@ -22,11 +22,13 @@ func TestRunUsesObservabilityCustomizerByDefault(t *testing.T) {
 
 	g := NewWithT(t)
 	scheme := runtime.NewScheme()
+
 	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
 	scheme.AddKnownTypeWithName(gvk.MonitoringStack, &unstructured.Unstructured{})
+
 	existing := &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "monitoring.rhobs/v1alpha1",
-		"kind":       "MonitoringStack",
+		"apiVersion": gvk.MonitoringStack.GroupVersion().String(),
+		"kind":       gvk.MonitoringStack.Kind,
 		"metadata": map[string]any{
 			"name":      "stack",
 			"namespace": "ns",
@@ -36,14 +38,16 @@ func TestRunUsesObservabilityCustomizerByDefault(t *testing.T) {
 		},
 	}}
 	existing.SetGroupVersionKind(gvk.MonitoringStack)
+
 	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
 	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 		Name: "owner", Namespace: "ns", UID: "owner-uid",
 	}}
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+
 	desired := &unstructured.Unstructured{Object: map[string]any{
-		"apiVersion": "monitoring.rhobs/v1alpha1",
-		"kind":       "MonitoringStack",
+		"apiVersion": gvk.MonitoringStack.GroupVersion().String(),
+		"kind":       gvk.MonitoringStack.Kind,
 		"metadata": map[string]any{
 			"name":      "stack",
 			"namespace": "ns",
@@ -55,15 +59,28 @@ func TestRunUsesObservabilityCustomizerByDefault(t *testing.T) {
 	desired.SetGroupVersionKind(gvk.MonitoringStack)
 
 	result, err := deploy.New().Run(t.Context(), deploy.RunOptions{
-		Client: kubernetesClient, Owner: owner, Resources: resources.New(resources.List{desired}),
+		Client:    kubernetesClient,
+		Owner:     owner,
+		Resources: resources.New(resources.List{desired}),
 	})
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result.Applied).Should(Equal(1))
 
 	stored := &unstructured.Unstructured{}
 	stored.SetGroupVersionKind(gvk.MonitoringStack)
-	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKey{Namespace: "ns", Name: "stack"}, stored)).Should(Succeed())
-	resourcesValue, found, err := unstructured.NestedString(stored.Object, "spec", "resources", "requests", "cpu")
+
+	g.Expect(kubernetesClient.Get(
+		t.Context(),
+		client.ObjectKey{Namespace: "ns", Name: "stack"},
+		stored,
+	)).Should(Succeed())
+	resourcesValue, found, err := unstructured.NestedString(
+		stored.Object,
+		"spec",
+		"resources",
+		"requests",
+		"cpu",
+	)
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(found).Should(BeTrue())
 	g.Expect(resourcesValue).Should(Equal("1"))

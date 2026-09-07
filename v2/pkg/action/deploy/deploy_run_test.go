@@ -23,8 +23,10 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 
 	g := NewWithT(t)
 	scheme := runtime.NewScheme()
+
 	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
 	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+
 	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 		Name: "owner", Namespace: "owner-ns", UID: "owner-uid", Generation: 3,
 	}}
@@ -72,6 +74,7 @@ func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
 		Name: "owner", Namespace: "ns", UID: "owner-uid",
 	}}
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+
 	first := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "first", Namespace: "ns"}}
 	second := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{"name": "second", "namespace": "ns"},

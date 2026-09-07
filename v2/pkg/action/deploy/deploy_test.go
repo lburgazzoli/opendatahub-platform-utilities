@@ -20,6 +20,7 @@ import (
 
 func TestRunRequiresInputs(t *testing.T) {
 	t.Parallel()
+
 	g := NewWithT(t)
 
 	_, err := deploy.New().Run(t.Context())
@@ -28,6 +29,7 @@ func TestRunRequiresInputs(t *testing.T) {
 
 func TestRunSkipsExistingManagedResource(t *testing.T) {
 	t.Parallel()
+
 	g := NewWithT(t)
 
 	scheme := runtime.NewScheme()
@@ -55,6 +57,7 @@ func TestRunSkipsExistingManagedResource(t *testing.T) {
 
 func TestRunRejectsDuplicateIdentity(t *testing.T) {
 	t.Parallel()
+
 	g := NewWithT(t)
 
 	scheme := runtime.NewScheme()
@@ -76,6 +79,7 @@ func TestRunRejectsDuplicateIdentity(t *testing.T) {
 
 func TestExecuteUsesRunContract(t *testing.T) {
 	t.Parallel()
+
 	g := NewWithT(t)
 
 	scheme := runtime.NewScheme()

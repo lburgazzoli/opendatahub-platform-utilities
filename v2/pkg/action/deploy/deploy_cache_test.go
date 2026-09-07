@@ -19,13 +19,16 @@ func TestRunUsesCacheForIdenticalDesiredResources(t *testing.T) {
 
 	g := NewWithT(t)
 	scheme := runtime.NewScheme()
+
 	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
 	baseClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 	kubernetesClient := &countingClient{Client: baseClient}
+
 	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 		Name: "owner", Namespace: "ns", UID: "owner-uid",
 	}}
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
 	collection := resources.New(resources.List{desired})
 	action := deploy.New(deploy.WithCache())

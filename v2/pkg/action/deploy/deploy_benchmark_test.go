@@ -28,10 +28,12 @@ func benchmarkRun(b *testing.B) {
 				if err != nil {
 					b.Fatal(err)
 				}
+
 				owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
 					Name: "owner", Namespace: "ns", UID: "owner-uid",
 				}}
 				owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+
 				objects := make(resources.List, count)
 				for index := range count {
 					object := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
@@ -41,25 +43,29 @@ func benchmarkRun(b *testing.B) {
 					object.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 					objects[index] = object
 				}
+
 				kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 				options := []deploy.Option(nil)
-			if cached {
-				options = append(options, deploy.WithCache())
-			}
-			action := deploy.New(options...)
 
-			if cached {
-				_, err = action.Run(b.Context(), deploy.RunOptions{
-					Client:    kubernetesClient,
-					Owner:     owner,
-					Resources: resources.New(objects),
-				})
-				if err != nil {
-					b.Fatal(err)
+				if cached {
+					options = append(options, deploy.WithCache())
 				}
-			}
 
-			b.ReportAllocs()
+				action := deploy.New(options...)
+
+				if cached {
+					_, err = action.Run(b.Context(), deploy.RunOptions{
+						Client:    kubernetesClient,
+						Owner:     owner,
+						Resources: resources.New(objects),
+					})
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+
+				b.ReportAllocs()
+
 				b.ResetTimer()
 				for b.Loop() {
 					collection := resources.New(objects)
