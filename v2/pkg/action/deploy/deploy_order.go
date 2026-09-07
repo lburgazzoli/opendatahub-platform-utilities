@@ -2,7 +2,6 @@ package deploy
 
 import (
 	"cmp"
-	"context"
 	"slices"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -13,10 +12,7 @@ import (
 )
 
 // SortFunc orders desired objects before deployment.
-type SortFunc func(context.Context, resources.List) (resources.List, error)
-
-// SortFn is retained as a descriptive alias for sorting options.
-type SortFn = SortFunc
+type SortFunc func(resources.List) resources.List
 
 //nolint:gochecknoglobals // The rank table is immutable package configuration.
 var applyRanks = map[schema.GroupVersionKind]int{
@@ -40,15 +36,14 @@ var applyRanks = map[schema.GroupVersionKind]int{
 }
 
 // ApplyOrder orders desired objects by Kubernetes dependency rank.
-func ApplyOrder(ctx context.Context, objects resources.List) (resources.List, error) {
-	_ = ctx
+func ApplyOrder(objects resources.List) resources.List {
 	ordered := append(resources.List(nil), objects...)
 	slices.SortStableFunc(ordered, func(left client.Object, right client.Object) int {
 		leftRank := applyRank(left.GetObjectKind().GroupVersionKind())
 		rightRank := applyRank(right.GetObjectKind().GroupVersionKind())
 		return cmp.Compare(leftRank, rightRank)
 	})
-	return ordered, nil
+	return ordered
 }
 
 func applyRank(gvk schema.GroupVersionKind) int {
