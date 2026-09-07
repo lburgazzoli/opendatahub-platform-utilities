@@ -19,6 +19,8 @@ constraints as the original implementation.
 
 - Use the repository Makefile for Go validation whenever the module provides a
   target; use Go 1.26 language and library conventions.
+- Apply the `use-modern-go` skill when writing or changing Go. Run its Modern Go
+  Guidelines CLI for the target file and follow the complete applicable list.
 - Functional-option APIs must define an `Option` interface. The complete
   `Options` struct must implement that same interface as functional options;
   test both forms when options are introduced.
@@ -28,6 +30,8 @@ constraints as the original implementation.
   `options.go` or `support.go` files for a feature.
 - Preserve dependency direction and keep package boundaries explicit. Avoid
   importing framework helpers into isolated test infrastructure.
+- When classifying mutually exclusive error outcomes, prefer a `switch` with
+  one case per classification over a sequence of related `if` statements.
 
 ## Tests and integration infrastructure
 
