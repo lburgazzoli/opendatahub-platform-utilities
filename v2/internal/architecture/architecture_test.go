@@ -21,6 +21,7 @@ var (
 	errKubeDependency     = errors.New("violates kube/resources dependency direction")
 	errPlatformDependency = errors.New("violates platform dependency direction")
 	errConcreteAction     = errors.New("imports a concrete action package")
+	errPipelineAdapter    = errors.New("pipeline imports belong in action *_pipeline.go adapters")
 )
 
 func TestDependencyDirection(t *testing.T) {
@@ -41,6 +42,18 @@ func TestDependencyDirectionRejectsForbiddenImports(t *testing.T) {
 	err := os.WriteFile(path, []byte(source), 0o600)
 	g.Expect(err).Should(Succeed())
 	g.Expect(validateFile("pkg/kube/resources/bad.go", path)).Should(MatchError(ContainSubstring("dependency direction")))
+}
+
+func TestDependencyDirectionRejectsPipelineImportsOutsideAdapters(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	path := filepath.Join(t.TempDir(), "action.go")
+	source := "package action\n" +
+		"import _ \"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline\"\n"
+	err := os.WriteFile(path, []byte(source), 0o600)
+	g.Expect(err).Should(Succeed())
+	g.Expect(validateFile("pkg/action/example/action.go", path)).Should(MatchError(ContainSubstring("pipeline imports")))
 }
 
 func moduleRoot(t *testing.T) string {
@@ -113,6 +126,12 @@ func fileImports(path string) ([]string, error) {
 
 func validateImportPaths(relativePath string, imports []string) error {
 	for _, importedPath := range imports {
+		if strings.HasPrefix(filepath.ToSlash(relativePath), "pkg/action/") &&
+			importedPath == modulePath+"/pkg/controller/pipeline" &&
+			!strings.HasSuffix(relativePath, "_pipeline.go") {
+			return fmt.Errorf("%s: %w", relativePath, errPipelineAdapter)
+		}
+
 		if strings.Contains(importedPath, "/framework") || strings.HasSuffix(importedPath, "/pkg") {
 			return fmt.Errorf("%s: %w: %q", relativePath, errForbiddenV1Path, importedPath)
 		}
