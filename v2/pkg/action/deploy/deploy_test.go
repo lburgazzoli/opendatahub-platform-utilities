@@ -48,7 +48,7 @@ func TestRunSkipsExistingManagedResource(t *testing.T) {
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
 
 	result, err := deploy.New().Run(t.Context(), deploy.RunOptions{
-		Client: kubernetesClient, Owner: owner, Resources: resources.New(resources.List{desired}),
+		Client: kubernetesClient, Owner: owner, Resources: resources.New(resourceList(t, scheme, desired)),
 	})
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result.Applied).Should(Equal(0))
@@ -69,7 +69,7 @@ func TestRunRejectsDuplicateIdentity(t *testing.T) {
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 	first := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "same", Namespace: "ns"}}
 	second := first.DeepCopy()
-	collection := resources.New(resources.List{first, second})
+	collection := resources.New(resourceList(t, scheme, first, second))
 
 	_, err := deploy.New().Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
@@ -92,7 +92,7 @@ func TestExecuteUsesRunContract(t *testing.T) {
 	}}
 	owner.SetGroupVersionKind(consumerGV.WithKind("Consumer"))
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
-	collection := resources.New(resources.List{desired})
+	collection := resources.New(resourceList(t, scheme, desired))
 
 	err := deploy.New().Execute(t.Context(), &pipeline.Request{
 		Client: kubernetesClient, Instance: owner, Resources: collection,

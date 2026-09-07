@@ -45,6 +45,10 @@ func Decode(content []byte) ([]*unstructured.Unstructured, error) {
 
 // ToUnstructured converts a Kubernetes object to an unstructured object.
 func ToUnstructured(object client.Object) (*unstructured.Unstructured, error) {
+	if u, ok := object.(*unstructured.Unstructured); ok {
+		return u.DeepCopy(), nil
+	}
+
 	data, err := runtime.DefaultUnstructuredConverter.ToUnstructured(object)
 	if err != nil {
 		return nil, fmt.Errorf("convert %T to unstructured: %w", object, err)

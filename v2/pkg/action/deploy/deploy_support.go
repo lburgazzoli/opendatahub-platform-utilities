@@ -17,14 +17,13 @@ import (
 
 // deployOne processes one desired object through lookup, policy, customization,
 // cache evaluation, and server-side apply.
-func (a *Action) deployOne(ctx context.Context, values RunOptions, object client.Object) (bool, error) {
+func (a *Action) deployOne(
+	ctx context.Context,
+	values RunOptions,
+	object *unstructured.Unstructured,
+) (bool, error) {
 	// Resolve the desired and current objects before applying any policy.
-	desired, err := resources.ToUnstructured(object)
-	if err != nil {
-		return false, err
-	}
-
-	desired.SetGroupVersionKind(object.GetObjectKind().GroupVersionKind())
+	desired := object.DeepCopy()
 
 	current, err := a.lookupCurrent(ctx, values.Client, desired)
 	if err != nil {

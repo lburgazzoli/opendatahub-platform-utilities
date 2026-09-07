@@ -107,12 +107,8 @@ func BenchmarkCacheHas(b *testing.B) {
 			desired := make([]*unstructured.Unstructured, 0, count)
 			deployed := make([]*unstructured.Unstructured, 0, count)
 
-			for _, object := range objects {
-				desiredObject, err := resources.ToUnstructured(object)
-				if err != nil {
-					b.Fatal(err)
-				}
-
+			for index := range objects {
+				desiredObject := &objects[index]
 				deployedObject := desiredObject.DeepCopy()
 				desired = append(desired, desiredObject)
 				deployed = append(deployed, deployedObject)
@@ -146,11 +142,15 @@ func BenchmarkApply(b *testing.B) {
 		b.Run(objectType, func(b *testing.B) {
 			scheme := benchmarkScheme(b)
 			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-			objects := benchmarkObjects(1)
-			if objectType == "unstructured" {
-				objects = benchmarkUnstructuredObjects(b, objects)
+
+			var desired client.Object
+			switch objectType {
+			case "typed":
+				desired = benchmarkTypedObject()
+			case "unstructured":
+				objects := benchmarkObjects(1)
+				desired = &objects[0]
 			}
-			desired := objects[0]
 
 			if err := resources.Apply(
 				b.Context(),
@@ -175,39 +175,6 @@ func BenchmarkApply(b *testing.B) {
 				}
 			}
 		})
-	}
-}
-
-func BenchmarkRunObjectType(b *testing.B) {
-	for _, count := range []int{1, 10, 100} {
-		for _, objectType := range []string{"typed", "unstructured"} {
-			b.Run(fmt.Sprintf("resources-%d/%s", count, objectType), func(b *testing.B) {
-				scheme := benchmarkScheme(b)
-				owner := benchmarkOwner()
-				objects := benchmarkObjects(count)
-				if objectType == "unstructured" {
-					objects = benchmarkUnstructuredObjects(b, objects)
-				}
-
-				kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-				action := New()
-
-				b.ReportAllocs()
-				b.ResetTimer()
-
-				for b.Loop() {
-					_, err := action.Run(b.Context(), RunOptions{
-						Client:    kubernetesClient,
-						Owner:     owner,
-						Resources: resources.New(objects),
-					})
-					if err != nil {
-						b.Fatal(err)
-					}
-				}
-				b.ReportMetric(float64(count), "resources/op")
-			})
-		}
 	}
 }
 
@@ -320,10 +287,7 @@ func newBenchmarkClient(
 	}
 
 	for _, object := range objects {
-		desired, err := resources.ToUnstructured(object)
-		if err != nil {
-			b.Fatal(err)
-		}
+		desired := object.DeepCopy()
 		benchmark.current[client.ObjectKeyFromObject(desired)] = desired
 	}
 
@@ -343,7 +307,7 @@ func benchmarkOwner() *corev1.ConfigMap {
 func benchmarkObjects(count int) resources.List {
 	objects := make(resources.List, count)
 	for index := range count {
-		object := &corev1.ConfigMap{}
+		object := unstructured.Unstructured{Object: map[string]any{}}
 		object.SetName(fmt.Sprintf("desired-%d", index))
 		object.SetNamespace("ns")
 		object.SetGroupVersionKind(gvk.ConfigMap)
@@ -353,20 +317,11 @@ func benchmarkObjects(count int) resources.List {
 	return objects
 }
 
-func benchmarkUnstructuredObjects(
-	b *testing.B,
-	objects resources.List,
-) resources.List {
-	b.Helper()
+func benchmarkTypedObject() *corev1.ConfigMap {
+	object := &corev1.ConfigMap{}
+	object.SetName("desired-0")
+	object.SetNamespace("ns")
+	object.SetGroupVersionKind(gvk.ConfigMap)
 
-	unstructuredObjects := make(resources.List, len(objects))
-	for index, object := range objects {
-		unstructuredObject, err := resources.ToUnstructured(object)
-		if err != nil {
-			b.Fatal(err)
-		}
-		unstructuredObjects[index] = unstructuredObject
-	}
-
-	return unstructuredObjects
+	return object
 }

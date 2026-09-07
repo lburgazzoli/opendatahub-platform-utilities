@@ -4,8 +4,9 @@ package resources
 import (
 	"errors"
 	"iter"
+	"slices"
 
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 var (
@@ -14,23 +15,26 @@ var (
 )
 
 // List is an ordered collection of Kubernetes objects.
-type List []client.Object
+type List []unstructured.Unstructured
 
 // Predicate selects borrowed objects for collection operations.
-type Predicate func(client.Object) bool
+type Predicate func(*unstructured.Unstructured) bool
 
 // TransformFunc returns a replacement object or an error. The input object is
 // borrowed and must be treated as read-only.
-type TransformFunc func(index int, object client.Object) (client.Object, error)
+type TransformFunc func(
+	index int,
+	object *unstructured.Unstructured,
+) (unstructured.Unstructured, error)
 
 // Accessor exposes explicit resource collection operations.
 type Accessor interface {
-	All() iter.Seq2[int, client.Object]
+	All() iter.Seq2[int, *unstructured.Unstructured]
 	Len() int
 	Get() List
 	Set(objects List)
-	SetAt(index int, object client.Object) error
-	Append(objects ...client.Object)
+	SetAt(index int, object unstructured.Unstructured) error
+	Append(objects ...unstructured.Unstructured)
 	Filter(predicate Predicate) int
 	Transform(transform TransformFunc) error
 }
@@ -42,14 +46,14 @@ type Collection struct {
 
 // New creates a collection with a shallow copy of the supplied list.
 func New(initial List) *Collection {
-	return &Collection{objects: cloneList(initial)}
+	return &Collection{objects: slices.Clone(initial)}
 }
 
 // All iterates over the current collection without allocating.
-func (c *Collection) All() iter.Seq2[int, client.Object] {
-	return func(yield func(int, client.Object) bool) {
-		for index, object := range c.objects {
-			if !yield(index, object) {
+func (c *Collection) All() iter.Seq2[int, *unstructured.Unstructured] {
+	return func(yield func(int, *unstructured.Unstructured) bool) {
+		for index := range c.objects {
+			if !yield(index, &c.objects[index]) {
 				return
 			}
 		}
@@ -63,16 +67,16 @@ func (c *Collection) Len() int {
 
 // Get returns a shallow copy of the collection list.
 func (c *Collection) Get() List {
-	return cloneList(c.objects)
+	return slices.Clone(c.objects)
 }
 
 // Set replaces the collection list with a shallow copy.
 func (c *Collection) Set(objects List) {
-	c.objects = cloneList(objects)
+	c.objects = slices.Clone(objects)
 }
 
 // SetAt replaces one object without changing collection structure.
-func (c *Collection) SetAt(index int, object client.Object) error {
+func (c *Collection) SetAt(index int, object unstructured.Unstructured) error {
 	if index < 0 || index >= len(c.objects) {
 		return ErrIndexOutOfRange
 	}
@@ -83,7 +87,7 @@ func (c *Collection) SetAt(index int, object client.Object) error {
 }
 
 // Append adds objects while retaining insertion order and duplicates.
-func (c *Collection) Append(objects ...client.Object) {
+func (c *Collection) Append(objects ...unstructured.Unstructured) {
 	c.objects = append(c.objects, objects...)
 }
 
@@ -97,9 +101,9 @@ func (c *Collection) Filter(predicate Predicate) int {
 	kept := c.objects[:0]
 	discarded := 0
 
-	for _, object := range c.objects {
-		if predicate(object) {
-			kept = append(kept, object)
+	for index := range c.objects {
+		if predicate(&c.objects[index]) {
+			kept = append(kept, c.objects[index])
 			continue
 		}
 
@@ -118,9 +122,9 @@ func (c *Collection) Transform(transform TransformFunc) error {
 		return ErrNilTransform
 	}
 
-	transformed := cloneList(c.objects)
-	for index, object := range c.objects {
-		replacement, err := transform(index, object)
+	transformed := slices.Clone(c.objects)
+	for index := range c.objects {
+		replacement, err := transform(index, &c.objects[index])
 		if err != nil {
 			return err
 		}
@@ -131,8 +135,4 @@ func (c *Collection) Transform(transform TransformFunc) error {
 	c.objects = transformed
 
 	return nil
-}
-
-func cloneList(objects List) List {
-	return append(List(nil), objects...)
 }

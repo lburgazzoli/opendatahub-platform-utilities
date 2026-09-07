@@ -61,7 +61,7 @@ func TestRunUsesObservabilityCustomizerByDefault(t *testing.T) {
 	result, err := deploy.New().Run(t.Context(), deploy.RunOptions{
 		Client:    kubernetesClient,
 		Owner:     owner,
-		Resources: resources.New(resources.List{desired}),
+		Resources: resources.New(resourceList(t, scheme, desired)),
 	})
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result.Applied).Should(Equal(1))

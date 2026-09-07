@@ -4,8 +4,8 @@ import (
 	"cmp"
 	"slices"
 
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
@@ -39,7 +39,7 @@ var applyRanks = map[schema.GroupVersionKind]int{
 
 // ApplyOrder orders desired objects by Kubernetes dependency rank.
 func ApplyOrder(objects resources.List) {
-	slices.SortStableFunc(objects, func(left client.Object, right client.Object) int {
+	slices.SortStableFunc(objects, func(left unstructured.Unstructured, right unstructured.Unstructured) int {
 		leftRank, leftFound := applyRanks[left.GetObjectKind().GroupVersionKind()]
 		if !leftFound {
 			leftRank = defaultApplyRank

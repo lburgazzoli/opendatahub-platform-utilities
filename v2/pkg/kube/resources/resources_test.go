@@ -10,6 +10,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -21,8 +22,12 @@ func TestCollectionPreservesOrderAndUsesExplicitWriteBack(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
-	first := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "first"}}
-	second := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "second"}}
+	first := unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{"name": "first"},
+	}}
+	second := unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{"name": "second"},
+	}}
 	collection := resources.New(resources.List{first, second})
 
 	got := collection.Get()
@@ -30,10 +35,14 @@ func TestCollectionPreservesOrderAndUsesExplicitWriteBack(t *testing.T) {
 
 	g.Expect(collection.Get()[0].GetName()).Should(Equal("first"))
 
-	replacement := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "replacement"}}
+	replacement := unstructured.Unstructured{Object: map[string]any{
+		"metadata": map[string]any{"name": "replacement"},
+	}}
 	g.Expect(collection.SetAt(0, replacement)).Should(Succeed())
 	g.Expect(collection.Get()[0].GetName()).Should(Equal("replacement"))
-	g.Expect(collection.Filter(func(object client.Object) bool { return object.GetName() != "second" })).Should(Equal(1))
+	g.Expect(collection.Filter(func(object *unstructured.Unstructured) bool {
+		return object.GetName() != "second"
+	})).Should(Equal(1))
 	g.Expect(collection.Get()).Should(HaveLen(1))
 
 	seen := make([]string, 0, 2)
@@ -49,8 +58,8 @@ func TestCollectionLen(t *testing.T) {
 
 	g := NewWithT(t)
 	collection := resources.New(resources.List{
-		&metav1.PartialObjectMetadata{},
-		&metav1.PartialObjectMetadata{},
+		{},
+		{},
 	})
 
 	g.Expect(collection.Len()).Should(Equal(2))
@@ -61,17 +70,19 @@ func TestCollectionTransformIsAtomic(t *testing.T) {
 
 	g := NewWithT(t)
 	collection := resources.New(resources.List{
-		&metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "first"}},
-		&metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "second"}},
+		{Object: map[string]any{"metadata": map[string]any{"name": "first"}}},
+		{Object: map[string]any{"metadata": map[string]any{"name": "second"}}},
 	})
 	failure := resources.ErrNilTransform
 
-	err := collection.Transform(func(index int, object client.Object) (client.Object, error) {
+	err := collection.Transform(func(index int, object *unstructured.Unstructured) (unstructured.Unstructured, error) {
 		if index == 1 {
-			return nil, failure
+			return unstructured.Unstructured{}, failure
 		}
 
-		return &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "changed"}}, nil
+		return unstructured.Unstructured{
+			Object: map[string]any{"metadata": map[string]any{"name": "changed"}},
+		}, nil
 	})
 	g.Expect(err).Should(MatchError(failure))
 	g.Expect(collection.Get()[0].GetName()).Should(Equal("first"))

@@ -30,7 +30,7 @@ func TestRunUsesCacheForIdenticalDesiredResources(t *testing.T) {
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
-	collection := resources.New(resources.List{desired})
+	collection := resources.New(resourceList(t, scheme, desired))
 	action := deploy.New(deploy.WithCache())
 
 	result, err := action.Run(t.Context(), deploy.RunOptions{

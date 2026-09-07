@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/util/sets"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
@@ -58,7 +57,8 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 
 	result := Result{}
 	var runErrors []error
-	for _, object := range objects {
+	for index := range objects {
+		object := &objects[index]
 		applied, err := a.deployOne(ctx, runOptions, object)
 		switch {
 		case err != nil:
@@ -83,12 +83,8 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 
 	objects := make(resources.List, 0, values.Resources.Len())
 	for _, res := range values.Resources.All() {
-		if res == nil {
-			return nil, fmt.Errorf("identify resource: %w", resources.ErrNilObject)
-		}
-
-		object := res.DeepCopyObject().(client.Object)
-		objects = append(objects, object)
+		object := res.DeepCopy()
+		objects = append(objects, *object)
 
 		identity, err := resources.IdentityOf(object, values.Client.Scheme())
 		switch {

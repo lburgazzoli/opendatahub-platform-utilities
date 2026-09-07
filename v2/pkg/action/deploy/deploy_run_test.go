@@ -32,7 +32,7 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	}}
 	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
 	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "owner-ns"}}
-	collection := resources.New(resources.List{desired})
+	collection := resources.New(resourceList(t, scheme, desired))
 
 	result, err := deploy.New(
 		deploy.WithLabel("example.io/test", "true"),
@@ -79,7 +79,7 @@ func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
 	second := &unstructured.Unstructured{Object: map[string]any{
 		"metadata": map[string]any{"name": "second", "namespace": "ns"},
 	}}
-	collection := resources.New(resources.List{first, second})
+	collection := resources.New(resourceList(t, scheme, first, second))
 
 	_, err := deploy.New(deploy.WithLabel("example.io/test", "true")).Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
@@ -91,6 +91,6 @@ func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
 
 	published := collection.Get()
 	g.Expect(published).Should(HaveLen(2))
-	g.Expect(published[0]).Should(BeIdenticalTo(first))
-	g.Expect(published[1]).Should(BeIdenticalTo(second))
+	g.Expect(published[0].GetName()).Should(Equal(first.GetName()))
+	g.Expect(published[1].GetName()).Should(Equal(second.GetName()))
 }
