@@ -49,7 +49,7 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 		Client: kubernetesClient, Owner: owner, Resources: collection,
 	})
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(result.Applied).Should(HaveLen(1))
+	g.Expect(result.Applied).Should(Equal(1))
 	g.Expect(desired.GetNamespace()).Should(Equal("owner-ns"))
 	g.Expect(desired.GetLabels()).Should(HaveKeyWithValue("example.io/test", "true"))
 	g.Expect(desired.GetLabels()).Should(HaveKeyWithValue(labels.PlatformPartOf, "configmap"))

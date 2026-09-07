@@ -59,10 +59,10 @@ func (f CustomizerFunc) Apply(
 // FieldOwnerFunc resolves the SSA field manager for a run owner.
 type FieldOwnerFunc func(client.Object) string
 
-// Result reports the resource identities applied and skipped by a run.
+// Result reports the number of resources applied and skipped by a run.
 type Result struct {
-	Applied []resources.Identity
-	Skipped []resources.Identity
+	Applied int
+	Skipped int
 }
 
 // Action deploys resources using an immutable configuration snapshot.
@@ -127,60 +127,55 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 		return Result{}, err
 	}
 
-	result := Result{
-		Applied: make([]resources.Identity, 0, len(objects)),
-		Skipped: make([]resources.Identity, 0),
-	}
+	result := Result{}
 	var runErrors []error
 	for _, object := range objects {
-		identity, err := resources.IdentityOf(object, runOptions.Client.Scheme())
-		if err != nil {
-			return result, err
-		}
 		applied, err := a.deployOne(ctx, runOptions, object)
 		switch {
 		case err != nil:
-			wrapped := fmt.Errorf("deploy %s: %w", identity.GVK, err)
+			wrapped := fmt.Errorf("deploy %s: %w", object.GetObjectKind().GroupVersionKind(), err)
 			if !a.options.ContinueOnError {
 				return result, wrapped
 			}
 			runErrors = append(runErrors, wrapped)
 			continue
 		case applied:
-			result.Applied = append(result.Applied, identity)
+			result.Applied++
 		default:
-			result.Skipped = append(result.Skipped, identity)
+			result.Skipped++
 		}
 	}
 
 	return result, errors.Join(runErrors...)
 }
 
-func (a *Action) prepare(ctx context.Context, values RunOptions) ([]client.Object, error) {
+func (a *Action) prepare(ctx context.Context, values RunOptions) (resources.List, error) {
 	objects := values.Resources.Get()
 	seen := sets.New[resources.Identity]()
 	for index, object := range objects {
-		identity, err := resources.IdentityOf(object, values.Client.Scheme())
+		_, err := resources.EnsureGroupVersionKind(values.Client.Scheme(), object)
 		if err != nil {
 			return nil, fmt.Errorf("normalize resource %d: %w", index, err)
+		}
+		err = a.decorate(object, values.Owner)
+		if err != nil {
+			return nil, fmt.Errorf("decorate %s/%s: %w", object.GetNamespace(), object.GetName(), err)
+		}
+		identity, err := resources.IdentityOf(object, values.Client.Scheme())
+		if err != nil {
+			return nil, fmt.Errorf("identify resource %d: %w", index, err)
 		}
 		if seen.Has(identity) {
 			return nil, fmt.Errorf("%w: %s/%s %s", ErrDuplicateIdentity, identity.Namespace, identity.Name, identity.GVK)
 		}
 		seen.Insert(identity)
-		err = a.decorate(object, values.Owner)
-		if err != nil {
-			return nil, fmt.Errorf("decorate %s/%s: %w", object.GetNamespace(), object.GetName(), err)
-		}
 	}
 
-	if a.options.Sort != nil {
-		sorted, err := a.options.Sort(ctx, objects)
-		if err != nil {
-			return nil, fmt.Errorf("sort resources: %w", err)
-		}
-		objects = sorted
+	sorted, err := a.options.Sort(ctx, objects)
+	if err != nil {
+		return nil, fmt.Errorf("sort resources: %w", err)
 	}
+	objects = sorted
 	values.Resources.Set(objects)
 	if a.cache != nil {
 		a.cache.Sync()
