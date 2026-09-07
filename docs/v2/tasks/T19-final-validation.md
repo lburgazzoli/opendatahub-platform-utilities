@@ -4,6 +4,10 @@
 
 Run the complete deterministic validation suite before closeout.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Run unit tests, race tests, lint, formatting, tidy checks, generated-code

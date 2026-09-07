@@ -4,6 +4,10 @@
 
 Replace local renderer implementations with direct manifest-kit integration.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Use manifest-kit Helm, Kustomize, and Go-template renderers directly.

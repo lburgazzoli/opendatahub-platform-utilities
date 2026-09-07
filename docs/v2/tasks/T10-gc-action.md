@@ -4,6 +4,10 @@
 
 Implement reusable GC and discovery behavior under `pkg/action/gc`.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Consolidate root/framework GC behavior and retain RBAC-aware discovery,

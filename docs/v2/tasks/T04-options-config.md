@@ -4,6 +4,10 @@
 
 Implement immutable generic options and typed configuration source composition.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Add the dependency-free generic option primitives.

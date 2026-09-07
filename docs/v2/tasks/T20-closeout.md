@@ -4,6 +4,10 @@
 
 Mark the implementation plan complete only after all acceptance gates pass.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Update `docs/v2/plan.md` with final task statuses, validation evidence,

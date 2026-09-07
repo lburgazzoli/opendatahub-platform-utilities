@@ -4,6 +4,10 @@
 
 Create the standalone Kind cluster engine required by later integration tests.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Keep the engine in a separable package/module with its own dependency

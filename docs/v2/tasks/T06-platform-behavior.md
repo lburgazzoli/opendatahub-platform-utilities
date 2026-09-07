@@ -4,6 +4,10 @@
 
 Implement behavior over v2 API types without expanding the `api` package.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Consolidate condition CRUD/aggregation, release helpers, metadata policies,

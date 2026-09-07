@@ -5,6 +5,10 @@
 Implement immutable pipeline registration and before/main/after/cleanup
 execution.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Own `Request`, extensions, action registration, guards, optional validators,

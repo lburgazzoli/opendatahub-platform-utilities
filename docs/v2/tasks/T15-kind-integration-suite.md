@@ -4,6 +4,10 @@
 
 Add real-cluster integration coverage for the retained v2 behavior.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Use only the isolated Kind engine from T01 and public v2 APIs.

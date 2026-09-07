@@ -5,6 +5,10 @@
 Consolidate v2 Kubernetes resource, ownership, singleton, admission, metadata,
 and server-side-apply primitives.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Implement `resources.Accessor` and the default collection semantics from

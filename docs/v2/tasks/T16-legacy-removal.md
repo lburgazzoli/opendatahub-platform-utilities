@@ -5,6 +5,10 @@
 Remove duplicate implementations and obsolete module boundaries after v2
 behavior is verified.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Delete the nested framework module and obsolete root/framework duplicates only

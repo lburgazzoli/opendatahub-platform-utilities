@@ -4,6 +4,10 @@
 
 Implement the type-only v2 `api` package and its contract validation.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Consolidate the platform wire types, constants, reduced accessors,

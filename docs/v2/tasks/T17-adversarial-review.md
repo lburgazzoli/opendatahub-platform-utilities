@@ -5,6 +5,10 @@
 Have a fresh `sol-high` agent challenge the completed implementation and task
 pack.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 Review against `docs/v2/v2.md`, `docs/action-error-semantics.md`, `AGENTS.md`,

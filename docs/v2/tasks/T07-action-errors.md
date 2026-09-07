@@ -4,6 +4,10 @@
 
 Implement the canonical v2 `pkg/action.ActionError` semantics.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Follow `docs/action-error-semantics.md` as the normative companion to

@@ -5,6 +5,10 @@
 Implement the reusable deploy action with programmatic and pipeline entry
 points.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Consolidate root and framework deploy behavior under `pkg/action/deploy`.

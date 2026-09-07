@@ -5,6 +5,10 @@
 Inventory v1 consumers, exported symbols, duplicate implementations, and
 production capabilities before v2 code is created.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Read `docs/v2/v2.md` and inspect all current Go modules and examples.

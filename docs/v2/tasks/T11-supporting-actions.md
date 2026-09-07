@@ -5,6 +5,10 @@
 Implement retained non-deploy/GC actions with the same `Run` plus thin
 `Execute` model.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Add delete, requirements, workload, OpenShift, and release actions under

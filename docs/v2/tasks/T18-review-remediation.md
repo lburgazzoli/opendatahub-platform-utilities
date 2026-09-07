@@ -4,6 +4,10 @@
 
 Use `luna-high` to fix every accepted T17 finding.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Implement only accepted findings and their directly required regression

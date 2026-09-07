@@ -4,6 +4,10 @@
 
 Establish the single `/v2` Go module and its build/architecture foundations.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Set the v2 module path and Go 1.26 toolchain policy.

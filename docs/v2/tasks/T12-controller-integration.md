@@ -5,6 +5,10 @@
 Implement handlers, predicates, reconciler lifecycle, status processing,
 finalizers, cleanup, and dynamic ownership.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Implement cohesive public handlers/predicates and the private reconciler

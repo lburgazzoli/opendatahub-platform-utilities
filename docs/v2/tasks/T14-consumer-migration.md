@@ -4,6 +4,10 @@
 
 Migrate examples and the integration-test consumer to the v2 API.
 
+## Non-negotiable rules
+
+Read and follow [`../development.md`](../development.md) before starting.
+
 ## Instructions
 
 - Update examples and supported documentation to `/v2` imports.
