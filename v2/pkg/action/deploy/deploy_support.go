@@ -148,14 +148,9 @@ func (a *Action) writeSSA(
 			return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
 		}
 	}
-	if current != nil {
-		var found bool
-		_, found, err = unstructured.NestedFieldNoCopy(desired.Object, "aggregationRule")
-		if err != nil {
-			return nil, fmt.Errorf("inspect aggregationRule: %w", err)
-		} else if found {
-			unstructured.RemoveNestedField(desired.Object, "rules")
-		}
+	err = applyCoreCustomizer(desired, current)
+	if err != nil {
+		return nil, fmt.Errorf("apply core customizer %s: %w", desired.GroupVersionKind(), err)
 	}
 	err = resources.Apply(
 		ctx,

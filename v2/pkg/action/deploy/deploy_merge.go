@@ -202,6 +202,24 @@ func applyClusterRoleCustomizer(
 	return nil
 }
 
+func applyCoreCustomizer(
+	desired *unstructured.Unstructured,
+	existing *unstructured.Unstructured,
+) error {
+	if existing == nil {
+		return nil
+	}
+
+	_, found, err := unstructured.NestedFieldNoCopy(desired.Object, "aggregationRule")
+	if err != nil {
+		return fmt.Errorf("inspect aggregationRule: %w", err)
+	}
+	if found {
+		unstructured.RemoveNestedField(desired.Object, "rules")
+	}
+	return nil
+}
+
 func patchDeploymentCustomizer(
 	ctx context.Context,
 	kubernetesClient client.Client,
