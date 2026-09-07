@@ -142,30 +142,71 @@ func BenchmarkCacheHas(b *testing.B) {
 }
 
 func BenchmarkApply(b *testing.B) {
-	scheme := benchmarkScheme(b)
-	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-	desired := benchmarkObjects(1)[0]
+	for _, objectType := range []string{"typed", "unstructured"} {
+		b.Run(objectType, func(b *testing.B) {
+			scheme := benchmarkScheme(b)
+			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			objects := benchmarkObjects(1)
+			if objectType == "unstructured" {
+				objects = benchmarkUnstructuredObjects(b, objects)
+			}
+			desired := objects[0]
 
-	if err := resources.Apply(
-		b.Context(),
-		kubernetesClient,
-		desired,
-		client.FieldOwner("benchmark"),
-	); err != nil {
-		b.Fatal(err)
+			if err := resources.Apply(
+				b.Context(),
+				kubernetesClient,
+				desired,
+				client.FieldOwner("benchmark"),
+			); err != nil {
+				b.Fatal(err)
+			}
+
+			b.ReportAllocs()
+			b.ResetTimer()
+
+			for b.Loop() {
+				if err := resources.Apply(
+					b.Context(),
+					kubernetesClient,
+					desired,
+					client.FieldOwner("benchmark"),
+				); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
+}
 
-	b.ReportAllocs()
-	b.ResetTimer()
+func BenchmarkRunObjectType(b *testing.B) {
+	for _, count := range []int{1, 10, 100} {
+		for _, objectType := range []string{"typed", "unstructured"} {
+			b.Run(fmt.Sprintf("resources-%d/%s", count, objectType), func(b *testing.B) {
+				scheme := benchmarkScheme(b)
+				owner := benchmarkOwner()
+				objects := benchmarkObjects(count)
+				if objectType == "unstructured" {
+					objects = benchmarkUnstructuredObjects(b, objects)
+				}
 
-	for b.Loop() {
-		if err := resources.Apply(
-			b.Context(),
-			kubernetesClient,
-			desired,
-			client.FieldOwner("benchmark"),
-		); err != nil {
-			b.Fatal(err)
+				kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+				action := New()
+
+				b.ReportAllocs()
+				b.ResetTimer()
+
+				for b.Loop() {
+					_, err := action.Run(b.Context(), RunOptions{
+						Client:    kubernetesClient,
+						Owner:     owner,
+						Resources: resources.New(objects),
+					})
+					if err != nil {
+						b.Fatal(err)
+					}
+				}
+				b.ReportMetric(float64(count), "resources/op")
+			})
 		}
 	}
 }
@@ -310,4 +351,22 @@ func benchmarkObjects(count int) resources.List {
 	}
 
 	return objects
+}
+
+func benchmarkUnstructuredObjects(
+	b *testing.B,
+	objects resources.List,
+) resources.List {
+	b.Helper()
+
+	unstructuredObjects := make(resources.List, len(objects))
+	for index, object := range objects {
+		unstructuredObject, err := resources.ToUnstructured(object)
+		if err != nil {
+			b.Fatal(err)
+		}
+		unstructuredObjects[index] = unstructuredObject
+	}
+
+	return unstructuredObjects
 }
