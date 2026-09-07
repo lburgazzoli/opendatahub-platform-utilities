@@ -72,6 +72,9 @@ constraints as the original implementation.
   ownership and customizer changes, but before SSA mutates the desired object.
   `resources.Apply` updates the desired object, which is then used as the
   deployed cache object.
+- Low-level apply helpers must forward caller-supplied apply options without
+  injecting ownership policy. Callers that require forced SSA ownership pass
+  `client.ForceOwnership` explicitly.
 - A public cache type must have an exported constructor. Do not leave public
   option fields or constructors that are not consumed by the implementation.
 - The managed-resource opt-out annotation is presence-based in v2: any
