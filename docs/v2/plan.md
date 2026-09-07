@@ -92,5 +92,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] Deploy-focused adversarial review and remediation committed.
 - [x] Deploy lifecycle simplified to one current-object lookup per resource in
   `1d5f7d2`; focused tests verify the lookup/apply counts.
+- [x] Deploy orchestration split into lookup, ownership, customization, and
+  apply phases in `b03c277`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
