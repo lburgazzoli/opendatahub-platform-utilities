@@ -187,7 +187,7 @@ func containers(object *unstructured.Unstructured) ([]any, error) {
 func applyCoreCustomizer(
 	_ context.Context,
 	_ client.Client,
-	_ *Action,
+	_ Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
@@ -206,12 +206,12 @@ func applyCoreCustomizer(
 func patchDeploymentCustomizer(
 	ctx context.Context,
 	kubernetesClient client.Client,
-	action *Action,
+	options Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
 	_, _ = ctx, kubernetesClient
-	if existing == nil || resources.HasAnnotation(existing, action.options.ManagedAnnotation, "true") {
+	if existing == nil || resources.HasAnnotation(existing, options.ManagedAnnotation, "true") {
 		return nil
 	}
 	return RemoveDeploymentResources(desired)

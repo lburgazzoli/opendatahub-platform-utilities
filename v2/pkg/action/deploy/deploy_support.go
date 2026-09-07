@@ -142,7 +142,7 @@ func (a *Action) writeSSA(
 	}
 
 	if customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]; customizer != nil {
-		err = customizer(ctx, kubernetesClient, a, desired, current)
+		err = customizer(ctx, kubernetesClient, a.options, desired, current)
 		if err != nil {
 			return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
 		}
@@ -169,7 +169,7 @@ func (a *Action) writePatch(
 ) (*unstructured.Unstructured, error) {
 	var err error
 	if customizer := a.options.PatchCustomizers[desired.GroupVersionKind()]; customizer != nil {
-		err = customizer(ctx, kubernetesClient, a, desired, current)
+		err = customizer(ctx, kubernetesClient, a.options, desired, current)
 		if err != nil {
 			return nil, fmt.Errorf("patch customizer %s: %w", desired.GroupVersionKind(), err)
 		}

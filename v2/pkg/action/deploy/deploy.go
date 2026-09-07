@@ -36,7 +36,7 @@ type MergeFunc func(
 type CustomizerFunc func(
 	ctx context.Context,
 	kubernetesClient client.Client,
-	action *Action,
+	options Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error
