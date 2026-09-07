@@ -40,6 +40,9 @@ constraints as the original implementation.
   single operation.
 - Deployment must preserve the namespace supplied by the caller; do not infer
   or default a desired resource namespace from the owner object.
+- Generic deploy customizers are defaults. A caller-provided per-GVK
+  customizer replaces the default; compose built-in behavior explicitly when
+  a resource needs both core and resource-specific customization.
 
 ## Tests and integration infrastructure
 

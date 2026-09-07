@@ -267,7 +267,10 @@ func defaultOptions() Options {
 			appsv1.SchemeGroupVersion.WithKind("Deployment"): MergeDeployments,
 		},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: kindClusterRole}: applyClusterRoleCustomizer,
+			{Group: "rbac.authorization.k8s.io", Version: "v1", Kind: kindClusterRole}: chainCustomizers(
+				applyCoreCustomizer,
+				applyClusterRoleCustomizer,
+			),
 		},
 		PatchCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
 			appsv1.SchemeGroupVersion.WithKind("Deployment"): patchDeploymentCustomizer,

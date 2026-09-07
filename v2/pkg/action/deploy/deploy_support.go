@@ -142,15 +142,13 @@ func (a *Action) writeSSA(
 		}
 	}
 
-	if customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]; customizer != nil {
-		err = customizer(ctx, kubernetesClient, a, desired, current)
-		if err != nil {
-			return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
-		}
+	customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]
+	if customizer == nil {
+		customizer = applyCoreCustomizer
 	}
-	err = applyCoreCustomizer(desired, current)
+	err = customizer(ctx, kubernetesClient, a, desired, current)
 	if err != nil {
-		return nil, fmt.Errorf("apply core customizer %s: %w", desired.GroupVersionKind(), err)
+		return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
 	}
 	err = resources.Apply(
 		ctx,

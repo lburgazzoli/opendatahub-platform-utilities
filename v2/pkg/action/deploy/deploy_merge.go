@@ -203,6 +203,9 @@ func applyClusterRoleCustomizer(
 }
 
 func applyCoreCustomizer(
+	_ context.Context,
+	_ client.Client,
+	_ *Action,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
@@ -218,6 +221,27 @@ func applyCoreCustomizer(
 		unstructured.RemoveNestedField(desired.Object, "rules")
 	}
 	return nil
+}
+
+func chainCustomizers(values ...CustomizerFunc) CustomizerFunc {
+	return func(
+		ctx context.Context,
+		kubernetesClient client.Client,
+		action *Action,
+		desired *unstructured.Unstructured,
+		existing *unstructured.Unstructured,
+	) error {
+		for _, value := range values {
+			if value == nil {
+				continue
+			}
+			err := value(ctx, kubernetesClient, action, desired, existing)
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	}
 }
 
 func patchDeploymentCustomizer(
