@@ -41,6 +41,21 @@ type CustomizerFunc func(
 	existing *unstructured.Unstructured,
 ) error
 
+// Apply invokes the customizer. A nil customizer intentionally does nothing.
+func (f CustomizerFunc) Apply(
+	ctx context.Context,
+	kubernetesClient client.Client,
+	options Options,
+	desired *unstructured.Unstructured,
+	existing *unstructured.Unstructured,
+) error {
+	if f == nil {
+		return nil
+	}
+
+	return f(ctx, kubernetesClient, options, desired, existing)
+}
+
 // FieldOwnerFunc resolves the SSA field manager for a run owner.
 type FieldOwnerFunc func(client.Object) string
 
@@ -123,17 +138,17 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 			return result, err
 		}
 		applied, err := a.deployOne(ctx, runOptions, object)
-		if err != nil {
+		switch {
+		case err != nil:
 			wrapped := fmt.Errorf("deploy %s: %w", identity.GVK, err)
 			if !a.options.ContinueOnError {
 				return result, wrapped
 			}
 			runErrors = append(runErrors, wrapped)
 			continue
-		}
-		if applied {
+		case applied:
 			result.Applied = append(result.Applied, identity)
-		} else {
+		default:
 			result.Skipped = append(result.Skipped, identity)
 		}
 	}

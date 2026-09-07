@@ -141,11 +141,15 @@ func (a *Action) writeSSA(
 		}
 	}
 
-	if customizer := a.options.ApplyCustomizers[desired.GroupVersionKind()]; customizer != nil {
-		err = customizer(ctx, kubernetesClient, a.options, desired, current)
-		if err != nil {
-			return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
-		}
+	err = a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
+		ctx,
+		kubernetesClient,
+		a.options,
+		desired,
+		current,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
 	}
 	err = resources.Apply(
 		ctx,
@@ -168,11 +172,15 @@ func (a *Action) writePatch(
 	fieldOwner string,
 ) (*unstructured.Unstructured, error) {
 	var err error
-	if customizer := a.options.PatchCustomizers[desired.GroupVersionKind()]; customizer != nil {
-		err = customizer(ctx, kubernetesClient, a.options, desired, current)
-		if err != nil {
-			return nil, fmt.Errorf("patch customizer %s: %w", desired.GroupVersionKind(), err)
-		}
+	err = a.options.PatchCustomizers[desired.GroupVersionKind()].Apply(
+		ctx,
+		kubernetesClient,
+		a.options,
+		desired,
+		current,
+	)
+	if err != nil {
+		return nil, fmt.Errorf("patch customizer %s: %w", desired.GroupVersionKind(), err)
 	}
 	if current == nil {
 		err = kubernetesClient.Create(ctx, desired)
