@@ -99,7 +99,10 @@ func (a *Action) Validate() error {
 	if a == nil {
 		return ErrActionRequired
 	}
-	return a.validationError()
+	if !a.validated {
+		return validateOptions(a.options)
+	}
+	return a.validationErr
 }
 
 func validateOptions(options Options) error {
@@ -122,10 +125,7 @@ func validateOptions(options Options) error {
 
 // Run normalizes, decorates, and applies the desired resources.
 func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
-	if a == nil {
-		return Result{}, ErrActionRequired
-	}
-	err := a.validationError()
+	err := a.Validate()
 	if err != nil {
 		return Result{}, err
 	}
@@ -160,14 +160,6 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 
 	return result, errors.Join(runErrors...)
 }
-
-func (a *Action) validationError() error {
-	if !a.validated {
-		return validateOptions(a.options)
-	}
-	return a.validationErr
-}
-
 func (a *Action) prepare(ctx context.Context, values RunOptions) (resources.List, error) {
 	objects := values.Resources.Get()
 	seen := sets.New[resources.Identity]()
