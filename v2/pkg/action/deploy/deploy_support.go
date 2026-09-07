@@ -21,7 +21,9 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if err != nil {
 		return false, err
 	}
+
 	desired.SetGroupVersionKind(object.GetObjectKind().GroupVersionKind())
+
 	current, err := a.lookupCurrent(ctx, values.Client, desired)
 	if err != nil {
 		return false, err
@@ -35,27 +37,12 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		return false, nil
 	}
 
-	if a.shouldOwn(desired) {
-		desired.SetOwnerReferences(nil)
-		err = ownership.SetControllerReference(values.Owner, desired, values.Client.Scheme())
-		if err != nil {
-			return false, fmt.Errorf("set controller owner: %w", err)
-		}
+	if err := a.own(values, desired); err != nil {
+		return false, err
 	}
 
-	fieldOwner := a.options.FieldOwner(values.Owner)
-	if fieldOwner == "" {
-		return false, ErrFieldOwner
-	}
-
-	err = a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
-		ctx,
-		values.Client,
-		desired,
-		current,
-	)
-	if err != nil {
-		return false, fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
+	if err := a.customize(ctx, values.Client, desired, current); err != nil {
+		return false, err
 	}
 
 	if a.cache != nil {
@@ -73,12 +60,7 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 		cacheDesired = desired.DeepCopy()
 	}
 
-	if err := resources.Apply(
-		ctx,
-		values.Client,
-		desired,
-		client.FieldOwner(fieldOwner),
-	); err != nil {
+	if err := a.apply(ctx, values.Client, values.Owner, desired); err != nil {
 		return false, err
 	}
 
@@ -90,6 +72,65 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	}
 
 	return true, nil
+}
+
+func (a *Action) own(
+	values RunOptions,
+	desired *unstructured.Unstructured,
+) error {
+	if !a.shouldOwn(desired) {
+		return nil
+	}
+
+	desired.SetOwnerReferences(nil)
+	err := ownership.SetControllerReference(values.Owner, desired, values.Client.Scheme())
+	if err != nil {
+		return fmt.Errorf("set controller owner: %w", err)
+	}
+
+	return nil
+}
+
+func (a *Action) customize(
+	ctx context.Context,
+	kubernetesClient client.Client,
+	desired *unstructured.Unstructured,
+	current *unstructured.Unstructured,
+) error {
+	err := a.options.ApplyCustomizers[desired.GroupVersionKind()].Apply(
+		ctx,
+		kubernetesClient,
+		desired,
+		current,
+	)
+	if err != nil {
+		return fmt.Errorf("apply customizer %s: %w", desired.GroupVersionKind(), err)
+	}
+
+	return nil
+}
+
+func (a *Action) apply(
+	ctx context.Context,
+	kubernetesClient client.Client,
+	owner client.Object,
+	desired *unstructured.Unstructured,
+) error {
+	fieldOwner := a.options.FieldOwner(owner)
+	if fieldOwner == "" {
+		return ErrFieldOwner
+	}
+
+	if err := resources.Apply(
+		ctx,
+		kubernetesClient,
+		desired,
+		client.FieldOwner(fieldOwner),
+	); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (a *Action) shouldOwn(desired *unstructured.Unstructured) bool {
