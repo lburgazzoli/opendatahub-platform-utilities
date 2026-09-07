@@ -47,6 +47,9 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
+	if a.cache != nil {
+		a.cache.Sync()
+	}
 
 	objects, err := a.prepare(runOptions)
 	if err != nil {
@@ -76,8 +79,9 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 }
 
 func (a *Action) prepare(values RunOptions) (resources.List, error) {
-	objects := values.Resources.Get()
 	seen := sets.New[resources.Identity]()
+
+	objects := values.Resources.Get()
 	for index, object := range objects {
 		_, err := resources.EnsureGroupVersionKind(values.Client.Scheme(), object)
 		if err != nil {
@@ -101,9 +105,6 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 
 	objects = a.options.Sort(objects)
 	values.Resources.Set(objects)
-	if a.cache != nil {
-		a.cache.Sync()
-	}
 
 	return objects, nil
 }
