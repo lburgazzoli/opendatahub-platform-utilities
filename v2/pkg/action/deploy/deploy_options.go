@@ -212,7 +212,7 @@ func defaultOptions() Options {
 		ManagedAnnotation:    "opendatahub.io/managed",
 		ExcludeFromOwnership: []schema.GroupVersionKind{kubegvk.Namespace},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{
-			kubegvk.ClusterRole: applyCoreCustomizer,
+			kubegvk.ClusterRole: applyAggregatedClusterRoleCustomizer,
 			kubegvk.Deployment:  applyDeploymentCustomizer,
 		},
 	}

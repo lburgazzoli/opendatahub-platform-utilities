@@ -166,7 +166,7 @@ func containers(object *unstructured.Unstructured) ([]any, error) {
 	return result, nil
 }
 
-func applyCoreCustomizer(
+func applyAggregatedClusterRoleCustomizer(
 	_ context.Context,
 	_ client.Client,
 	_ Options,
