@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T05 complete**
+Status: **implementation in progress; T00–T06 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -82,5 +82,6 @@ buildable; the v2 runtime must not depend on it.
 - [x] T03 v2 API contract committed.
 - [x] T04 options and configuration committed.
 - [x] T05 Kubernetes primitives committed.
-- [ ] T06–T20 implementation and validation tasks executed.
+- [x] T06 platform behavior committed.
+- [ ] T07–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
