@@ -96,5 +96,6 @@ buildable; the v2 runtime must not depend on it.
   apply phases in `b03c277`.
 - [x] One-use ownership policy helper inlined with explicit switch cases in
   `80e008c`.
+- [x] Deploy phase boundaries documented in `70c8cc6`.
 - [ ] T10–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.
