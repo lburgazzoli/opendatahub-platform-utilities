@@ -8,8 +8,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-
-	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
 var (
@@ -188,11 +186,11 @@ func applyAggregatedClusterRoleCustomizer(
 func applyDeploymentCustomizer(
 	_ context.Context,
 	_ client.Client,
-	options Options,
+	_ Options,
 	desired *unstructured.Unstructured,
 	existing *unstructured.Unstructured,
 ) error {
-	if existing == nil || resources.HasAnnotation(existing, options.ManagedAnnotation, "true") {
+	if existing == nil {
 		return nil
 	}
 	return MergeDeployments(existing, desired)

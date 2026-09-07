@@ -83,12 +83,15 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 		if err != nil {
 			return nil, fmt.Errorf("normalize resource %d: %w", index, err)
 		}
+
 		resources.SetLabels(object, a.options.Labels)
 		resources.SetAnnotations(object, a.options.Annotations)
+
 		err = a.options.MetadataPolicy.Apply(object, values.Owner)
 		if err != nil {
 			return nil, fmt.Errorf("decorate %s/%s: %w", object.GetNamespace(), object.GetName(), err)
 		}
+
 		identity, err := resources.IdentityOf(object, values.Client.Scheme())
 		if err != nil {
 			return nil, fmt.Errorf("identify resource %d: %w", index, err)
@@ -96,6 +99,7 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 		if seen.Has(identity) {
 			return nil, fmt.Errorf("%w: %s/%s %s", ErrDuplicateIdentity, identity.Namespace, identity.Name, identity.GVK)
 		}
+
 		seen.Insert(identity)
 	}
 

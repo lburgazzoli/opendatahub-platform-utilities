@@ -79,6 +79,33 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	g.Expect(metav1.IsControlledBy(stored, owner)).Should(BeTrue())
 }
 
+func TestRunSkipsExistingManagedResource(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	scheme := runtime.NewScheme()
+	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
+	current := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+		Name: "desired", Namespace: "ns", Annotations: map[string]string{
+			annotations.ManagedByODHOperator: "true",
+		},
+	}}
+	current.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(current).Build()
+	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+		Name: "owner", Namespace: "ns", UID: "owner-uid",
+	}}
+	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+	desired := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "desired", Namespace: "ns"}}
+
+	result, err := deploy.New().Run(t.Context(), deploy.RunOptions{
+		Client: kubernetesClient, Owner: owner, Resources: resources.New(resources.List{desired}),
+	})
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.Applied).Should(Equal(0))
+	g.Expect(result.Skipped).Should(Equal(1))
+}
+
 func TestRunRejectsDuplicateIdentity(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)

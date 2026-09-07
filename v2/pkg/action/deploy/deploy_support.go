@@ -26,7 +26,7 @@ func (a *Action) deployOne(ctx context.Context, values RunOptions, object client
 	if err != nil {
 		return false, err
 	}
-	if current != nil && resources.HasAnnotation(current, a.options.ManagedAnnotation, "false") {
+	if current != nil && resources.HasAnnotation(current, a.options.ManagedAnnotation) {
 		return false, nil
 	}
 
