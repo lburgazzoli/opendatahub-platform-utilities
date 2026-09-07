@@ -67,8 +67,10 @@ type Result struct {
 
 // Action deploys resources using an immutable configuration snapshot.
 type Action struct {
-	options Options
-	cache   *Cache
+	options       Options
+	validationErr error
+	cache         *Cache
+	validated     bool
 }
 
 // New creates an immediately usable deploy action.
@@ -80,10 +82,13 @@ func New(values ...Option) *Action {
 		}
 	}
 
-	return &Action{
-		options: options,
-		cache:   newCache(options.Cache),
+	action := &Action{
+		options:   options,
+		cache:     newCache(options.Cache),
+		validated: true,
 	}
+	action.validationErr = validateOptions(options)
+	return action
 }
 
 // Name returns the default pipeline registration name.
@@ -94,16 +99,20 @@ func (a *Action) Validate() error {
 	if a == nil {
 		return ErrActionRequired
 	}
-	if a.options.MetadataPolicy == nil {
+	return a.validationError()
+}
+
+func validateOptions(options Options) error {
+	if options.MetadataPolicy == nil {
 		return ErrMetadataPolicy
 	}
-	if a.options.FieldOwner == nil {
+	if options.FieldOwner == nil {
 		return ErrFieldOwner
 	}
-	if a.options.Mode != ModeSSA && a.options.Mode != ModePatch {
-		return fmt.Errorf("%w: %d", ErrUnsupportedMode, a.options.Mode)
+	if options.Mode != ModeSSA && options.Mode != ModePatch {
+		return fmt.Errorf("%w: %d", ErrUnsupportedMode, options.Mode)
 	}
-	for gvk, merge := range a.options.MergeStrategies {
+	for gvk, merge := range options.MergeStrategies {
 		if merge == nil {
 			return fmt.Errorf("%w: %s", ErrMergeStrategyNil, gvk)
 		}
@@ -113,7 +122,10 @@ func (a *Action) Validate() error {
 
 // Run normalizes, decorates, and applies the desired resources.
 func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
-	err := a.Validate()
+	if a == nil {
+		return Result{}, ErrActionRequired
+	}
+	err := a.validationError()
 	if err != nil {
 		return Result{}, err
 	}
@@ -147,6 +159,13 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	}
 
 	return result, errors.Join(runErrors...)
+}
+
+func (a *Action) validationError() error {
+	if !a.validated {
+		return validateOptions(a.options)
+	}
+	return a.validationErr
 }
 
 func (a *Action) prepare(ctx context.Context, values RunOptions) (resources.List, error) {

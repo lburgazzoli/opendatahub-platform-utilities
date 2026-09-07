@@ -43,6 +43,9 @@ constraints as the original implementation.
 - Generic deploy customizers are defaults. A caller-provided per-GVK
   customizer replaces the default; compose built-in behavior explicitly when
   a resource needs both core and resource-specific customization.
+- Validate immutable action configuration once during construction and cache the
+  result; each `Run` must still check that cached result before validating
+  invocation inputs or performing I/O.
 
 ## Tests and integration infrastructure
 

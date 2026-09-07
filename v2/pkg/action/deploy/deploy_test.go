@@ -28,6 +28,17 @@ func TestRunRequiresInputs(t *testing.T) {
 	g.Expect(err).Should(MatchError(ContainSubstring("deploy client")))
 }
 
+func TestRunRejectsInvalidStableOptions(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+
+	action := deploy.New(deploy.Options{Mode: deploy.Mode(99)})
+
+	g.Expect(action.Validate()).Should(MatchError(ContainSubstring("unsupported deploy mode")))
+	_, err := action.Run(t.Context())
+	g.Expect(err).Should(MatchError(ContainSubstring("unsupported deploy mode")))
+}
+
 func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	t.Parallel()
 	g := NewWithT(t)
