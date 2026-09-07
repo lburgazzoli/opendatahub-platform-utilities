@@ -1,0 +1,65 @@
+package deploy_test
+
+import (
+	"fmt"
+	"testing"
+
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+)
+
+func BenchmarkRunPatch(b *testing.B) {
+	benchmarkRun(b, deploy.ModePatch)
+}
+
+func BenchmarkRunSSA(b *testing.B) {
+	benchmarkRun(b, deploy.ModeSSA)
+}
+
+func benchmarkRun(b *testing.B, mode deploy.Mode) {
+	b.Helper()
+
+	for _, count := range []int{1, 10, 100} {
+		b.Run(fmt.Sprintf("resources-%d", count), func(b *testing.B) {
+			scheme := runtime.NewScheme()
+			err := corev1.AddToScheme(scheme)
+			if err != nil {
+				b.Fatal(err)
+			}
+			owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: "owner", Namespace: "ns", UID: "owner-uid",
+			}}
+			owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+			objects := make(resources.List, count)
+			for index := range count {
+				object := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+					Name:      fmt.Sprintf("desired-%d", index),
+					Namespace: "ns",
+				}}
+				object.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+				objects[index] = object
+			}
+			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			action := deploy.New(deploy.WithMode(mode))
+
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				collection := resources.New(objects)
+				_, err := action.Run(b.Context(), deploy.RunOptions{
+					Client:    kubernetesClient,
+					Owner:     owner,
+					Resources: collection,
+				})
+				if err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
