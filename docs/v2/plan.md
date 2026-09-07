@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T09 complete**
+Status: **implementation in progress; T00–T11 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -108,5 +108,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] T10 GC action implemented with policy-aware desired-set cleanup,
   authorization filtering, static/dynamic discovery, and focused tests in
   `8d9639e`.
-- [ ] T11–T20 implementation and validation tasks executed.
+- [x] T11 supporting actions implemented with safe selectors, isolated
+  pipeline adapters, OpenShift ImageStream parsing, release discovery, and
+  focused tests in `5bdd036`.
+- [ ] T12–T20 implementation and validation tasks executed.
 - [ ] Final implementation validation passed.

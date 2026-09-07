@@ -11,11 +11,13 @@ Read and follow [`../development.md`](../development.md) before starting.
 
 ## Instructions
 
-- Add delete, requirements, workload, OpenShift, and release actions under
-  `pkg/action` as defined by `v2.md`.
+- Add delete, requirements, workload/deployment, OpenShift/imagestream, and
+  release actions under `pkg/action` as defined by `v2.md`.
 - Keep observation actions side-effect focused: return observations or update
   opt-in conditions, but do not persist status.
 - Keep controller-specific rendering out of shared actions.
+- Destructive and observation selectors must be explicit; an unbounded delete
+  requires an explicit opt-in.
 
 ## Verification
 

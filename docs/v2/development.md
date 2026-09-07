@@ -33,6 +33,9 @@ constraints as the original implementation.
   `*_options.go` files. Put supporting helpers, internal adapters, and test
   doubles in matching `*_support.go` files. Never create generic
   `options.go` or `support.go` files for a feature.
+- Keep each action's `Name`, `Execute`, pipeline request mapping, and
+  `pipeline.Action` conformance assertion in that action's `*_pipeline.go`
+  adapter. Domain files must not import `pkg/controller/pipeline`.
 - Preserve dependency direction and keep package boundaries explicit. Avoid
   importing framework helpers into isolated test infrastructure.
 - When classifying mutually exclusive error outcomes, prefer a `switch` with
@@ -95,6 +98,18 @@ constraints as the original implementation.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.
+- Destructive actions must reject an empty selector during construction unless
+  the caller explicitly opts into an unbounded operation. Observation actions
+  must also require an explicit selector; an empty selector must never mean
+  "all resources" accidentally.
+- Preserve option presence semantics: a struct option and its functional-option
+  equivalent must copy the same zero values, including explicit empty strings,
+  nil maps, and zero numeric values. Do not silently ignore an explicit reset.
+- For Kubernetes API classification, handle each mutually exclusive error in a
+  separate `switch` case. An API `NoMatch` may represent an unavailable kind,
+  but an ordinary `NotFound` is a real failure unless the action's contract
+  explicitly says otherwise. Propagate malformed unstructured fields instead
+  of treating them as healthy or absent.
 - Benchmark changes at the operation boundary that matters. Keep direct typed
   versus unstructured apply benchmarks separate from full fake-client runs so
   client/server-emulation overhead is not mistaken for deploy-action overhead.
