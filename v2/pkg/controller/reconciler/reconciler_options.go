@@ -16,11 +16,12 @@ const (
 )
 
 var (
-	ErrManagerRequired   = errors.New("reconciler manager is required")
-	ErrPrototypeRequired = errors.New("reconciler prototype is required")
-	ErrCleanupTimeout    = errors.New("reconciler cleanup timeout cannot be negative")
-	ErrPrototypeCopy     = errors.New("reconciler prototype deep copy is invalid")
-	ErrStatusRequired    = errors.New("reconciler status is required")
+	ErrManagerRequired          = errors.New("reconciler manager is required")
+	ErrPrototypeRequired        = errors.New("reconciler prototype is required")
+	ErrCleanupTimeout           = errors.New("reconciler cleanup timeout cannot be negative")
+	ErrPrototypeCopy            = errors.New("reconciler prototype deep copy is invalid")
+	ErrStatusRequired           = errors.New("reconciler status is required")
+	ErrConditionManagerRequired = errors.New("reconciler condition manager is required")
 )
 
 func defaultOptions() Options {
@@ -40,6 +41,7 @@ type Options struct {
 	CleanupTimeout       *time.Duration
 	PlatformProfile      *api.PlatformProfile
 	ExcludeFromOwnership []schema.GroupVersionKind
+	ConditionManager     ConditionManagerFactory
 }
 
 // ApplyTo applies a complete option value to target while preserving absent
@@ -55,6 +57,7 @@ func (o Options) ApplyTo(target *Options) {
 	target.DefaultRequeueAfter = o.DefaultRequeueAfter
 	target.DynamicOwnership = o.DynamicOwnership
 	target.ExcludeFromOwnership = slices.Clone(o.ExcludeFromOwnership)
+	target.ConditionManager = o.ConditionManager
 
 	if o.PlatformProfile == nil {
 		target.PlatformProfile = nil
@@ -118,5 +121,13 @@ func WithPlatformProfile(profile api.PlatformProfile) Option {
 func WithExcludedOwnershipTypes(types ...schema.GroupVersionKind) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.ExcludeFromOwnership = append(options.ExcludeFromOwnership, types...)
+	})
+}
+
+// WithConditionManagerFactory configures reconciler-owned condition status
+// processing.
+func WithConditionManagerFactory(factory ConditionManagerFactory) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.ConditionManager = factory
 	})
 }

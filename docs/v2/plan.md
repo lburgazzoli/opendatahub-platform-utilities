@@ -36,7 +36,10 @@ T12 + T13 -> T14 consumer migration
 T12 + T13 -> T21 standalone controller examples
 T01 + T12 + T14 -> T15 Kind integration suite
 all implementation tasks -> T16 legacy removal
-T16 -> T17 adversarial review (sol-high)
+T16 -> T22 condition manager
+T16 -> T23 OpenShift TLS integration
+T16 -> T24 cluster and distribution discovery
+T22 + T23 + T24 -> T17 adversarial review (sol-high)
 T17 -> T18 remediation (luna-high)
 T18 -> T19 final validation
 T19 -> T20 closeout
@@ -62,7 +65,7 @@ buildable; the v2 runtime must not depend on it.
 ## Documentation-pack validation
 
 - [x] Master relocation and relative-link correction checked.
-- [x] All 22 task files exist and have objective, verification, and dependency
+- [x] All 23 task files exist and have objective, verification, and dependency
   sections.
 - [x] Local adversarial pass corrected the renderer-to-pipeline dependency in
   T13 and the task graph.
@@ -142,7 +145,10 @@ buildable; the v2 runtime must not depend on it.
 - [x] T16 removed the obsolete nested framework module and migrated repository
   documentation and Makefile references; the root module remains as the
   explicitly retained v1 compatibility surface.
-- [ ] T17–T20 implementation and validation tasks executed.
+- [x] T22 added a reconciler-owned, factory-configurable condition manager
+  without adding condition state to `pipeline.Request`.
+- [ ] T23–T24 implementation tasks executed.
+- [ ] T17–T20 review, validation, and closeout tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.

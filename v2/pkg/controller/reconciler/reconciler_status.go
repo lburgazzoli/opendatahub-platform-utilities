@@ -3,7 +3,6 @@ package reconciler
 import (
 	"context"
 	"fmt"
-	"slices"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
@@ -26,8 +25,17 @@ func (r *Reconciler) applyStatus(
 	status.ObservedGeneration = generation
 
 	if accessor, ok := instance.(api.ConditionsAccessor); ok {
-		markProvisioning(accessor, outcome, generation)
-		aggregateConditions(accessor)
+		factory := r.options.ConditionManager
+		if factory == nil {
+			factory = defaultConditionManagerFactory
+		}
+
+		manager := factory(accessor)
+		if manager == nil {
+			return ErrConditionManagerRequired
+		}
+
+		manager.Apply(outcome, generation)
 	}
 
 	if accessor, ok := instance.(api.PhaseStatusAccessor); ok {
@@ -54,23 +62,6 @@ func (r *Reconciler) applyStatus(
 		instance,
 		client.FieldOwner(r.options.FieldOwner),
 		client.ForceOwnership,
-	)
-}
-
-func aggregateConditions(accessor api.ConditionsAccessor) {
-	dependentTypes := make([]string, 0, len(accessor.GetConditions()))
-	for _, current := range accessor.GetConditions() {
-		if current.Type == string(api.ConditionTypeReady) {
-			continue
-		}
-
-		dependentTypes = append(dependentTypes, current.Type)
-	}
-
-	condition.Aggregate(
-		accessor,
-		string(api.ConditionTypeReady),
-		slices.Compact(dependentTypes)...,
 	)
 }
 

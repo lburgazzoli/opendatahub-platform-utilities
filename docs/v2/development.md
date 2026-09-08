@@ -139,6 +139,11 @@ constraints as the original implementation.
   extensions. Set controller name and resolved field owner once when creating
   normal and cleanup requests; actions must consume those extensions instead
   of requiring every controller to repeat identity options.
+- Condition management belongs to the reconciler status boundary, not to
+  `pipeline.Request`. Actions publish their concrete conditions through the
+  instance's low-level accessor; the reconciler-owned condition manager handles
+  framework outcome conditions and aggregation, with a factory option for
+  controller-specific status policy.
 
 ## Controller-integration learnings
 
