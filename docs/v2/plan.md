@@ -123,6 +123,9 @@ buildable; the v2 runtime must not depend on it.
   `5fe3c33`, including namespace-scoped caching, safe Kind cleanup, aggregate
   integration validation, README alignment, and the shared generic
   `reconciler.Instance` request accessor.
+- [x] T21 integration tests remain in the builder module, the chart lives under
+  `config/chart` and is copied to `/opt/charts` in the image, and the example
+  uses the compatible `renderer-helm@main` manifest-kit dependency set.
 - [ ] T14–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused

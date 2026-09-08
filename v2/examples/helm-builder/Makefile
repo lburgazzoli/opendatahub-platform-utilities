@@ -75,7 +75,7 @@ test:
 
 .PHONY: test-integration
 test-integration:
-	$(MAKE) -C test/integration test
+	go test -race -count=1 -tags=integration ./test/integration
 
 .PHONY: tidy
 tidy:

@@ -37,7 +37,6 @@ func chartPath(t *testing.T) string {
 		"..",
 		"..",
 		"config",
-		"manager",
 		"chart",
 	))
 }

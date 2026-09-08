@@ -4,5 +4,4 @@ use (
 	..
 	../../testkit/kind
 	./helm-builder
-	./helm-builder/test/integration
 )

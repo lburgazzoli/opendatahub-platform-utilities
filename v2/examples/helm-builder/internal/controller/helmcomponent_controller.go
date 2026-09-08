@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
+	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
+	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
 	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/helm-builder/api/v1alpha1"
 	moduleconfig "github.com/opendatahub-io/odh-platform-utilities/v2/examples/helm-builder/pkg/config"
@@ -67,7 +69,7 @@ func (r *HelmComponentReconciler) render(
 		return err
 	}
 
-	rendered, err := r.renderer.Render(ctx, manifestengine.WithValues(map[string]any{
+	rendered, err := r.renderer.Render(ctx, manifestrender.WithValues(manifesttypes.Values{
 		"name":      component.GetName(),
 		"namespace": component.GetNamespace(),
 	}))

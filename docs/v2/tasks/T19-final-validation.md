@@ -13,7 +13,7 @@ Read and follow [`../development.md`](../development.md) before starting.
 - Run unit tests, race tests, lint, formatting, tidy checks, generated-code
   checks, architecture checks, and Kind integration tests.
 - Validate the examples with `make -C v2/examples test` for the unit-only path
-  and `make -C v2/examples test-integration` for the isolated Kind module; the
+  and `make -C v2/examples test-integration` for the in-module Kind test; the
   aggregate `make -C v2/examples all` target runs both without making the unit
   test target require a container runtime.
 - Confirm the v2 module builds independently and no forbidden v1 imports or

@@ -28,8 +28,11 @@ var (
 
 // Config contains immutable startup configuration for the example.
 type Config struct {
-	ChartPath              string
-	Namespace              string
+	// ChartPath is the filesystem path to the Helm chart.
+	ChartPath string
+	// Namespace is the namespace watched and used by the example controller.
+	Namespace string
+	// HealthProbeBindAddress is the controller-runtime health endpoint address.
 	HealthProbeBindAddress string
 }
 
@@ -54,11 +57,7 @@ func LoadFromFS(ctx context.Context, filesystem fs.FS) (*Config, error) {
 	})
 
 	environment, err := platformconfig.NewEnvironmentSource(
-		[]string{
-			ChartPathEnvVar,
-			NamespaceEnvVar,
-			HealthProbeBindAddressEnvVar,
-		},
+		[]string{ChartPathEnvVar, NamespaceEnvVar, HealthProbeBindAddressEnvVar},
 		func(values map[string]string, target *Config) error {
 			if value, ok := values[ChartPathEnvVar]; ok {
 				target.ChartPath = value
