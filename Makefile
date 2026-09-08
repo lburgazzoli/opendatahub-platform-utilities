@@ -65,59 +65,61 @@ verify-generate: generate ## Verify generated files are up to date.
 ##@ All Modules
 
 .PHONY: all-modules
-all-modules: all ## Run all checks across root, framework, testkit, and flakiness modules.
-	$(MAKE) -C framework all
+all-modules: all ## Run all checks across root, v2, testkit, and flakiness modules.
+	$(MAKE) -C v2 all
 	$(MAKE) -C testkit/kind all
 	$(MAKE) -C testkit/integration all
 	$(MAKE) -C flakiness all
 
 .PHONY: generate-all
 generate-all: generate ## Regenerate DeepCopy methods across all modules.
-	$(MAKE) -C framework generate
+	$(MAKE) -C v2 generate
 
 .PHONY: test-all
 test-all: test ## Run tests across all modules.
-	$(MAKE) -C framework test
+	$(MAKE) -C v2 test
 	$(MAKE) -C testkit/kind test
 	$(MAKE) -C testkit/integration test
 	$(MAKE) -C flakiness test
 
 .PHONY: lint-all
 lint-all: lint ## Run golangci-lint across all modules.
-	$(MAKE) -C framework lint
+	$(MAKE) -C v2 lint
 	$(MAKE) -C testkit/kind lint
 	$(MAKE) -C testkit/integration lint
 	$(MAKE) -C flakiness lint
 
 .PHONY: lint-fix-all
 lint-fix-all: lint-fix ## Run golangci-lint with --fix across all modules.
-	$(MAKE) -C framework lint-fix
+	$(MAKE) -C v2 lint-fix
 	$(MAKE) -C testkit/kind lint-fix
 	$(MAKE) -C testkit/integration lint-fix
 	$(MAKE) -C flakiness lint-fix
 
 .PHONY: tidy-all
 tidy-all: tidy ## Run go mod tidy across all modules.
-	$(MAKE) -C framework tidy
+	$(MAKE) -C v2 tidy
 	$(MAKE) -C testkit/kind tidy
 	$(MAKE) -C testkit/integration tidy
 	$(MAKE) -C flakiness tidy
 
 .PHONY: verify-fmt-all
 verify-fmt-all: verify-fmt ## Verify code formatting across all modules.
-	$(MAKE) -C framework verify-fmt
+	$(MAKE) -C v2 verify-fmt
+	$(MAKE) -C testkit/kind verify-fmt
+	$(MAKE) -C testkit/integration verify-fmt
 	$(MAKE) -C flakiness verify-fmt
 
 .PHONY: verify-tidy-all
 verify-tidy-all: verify-tidy ## Verify go.mod/go.sum are tidy across all modules.
-	$(MAKE) -C framework verify-tidy
+	$(MAKE) -C v2 verify-tidy
 	$(MAKE) -C testkit/kind verify-tidy
 	$(MAKE) -C testkit/integration verify-tidy
 	$(MAKE) -C flakiness verify-tidy
 
 .PHONY: verify-generate-all
 verify-generate-all: verify-generate ## Verify generated files are up to date across all modules.
-	$(MAKE) -C framework verify-generate
+	$(MAKE) -C v2 verify-generate
 
 ##@ Help
 

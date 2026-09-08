@@ -151,8 +151,7 @@ Use a timeout longer than `WithTimeout` (default 5 m is often short).
 SSA-applies multi-document YAML before creating the DSC. Teardown does
 **not** uninstall the operator — do not use this on a shared gate cluster.
 
-Accepts any [`resources.Source`](../framework/resources/source.go):
-[`NewFileSource`](../framework/resources/source.go) (absolute path) or
-[`NewURLSource`](../framework/resources/source.go) (HTTPS URL; load errors
-surface as `t.Fatalf`). Not a channel, quay image, GitHub tag, or PR.
-Operator releases do not ship `install.yaml`.
+This legacy PR-gate documentation no longer depends on the removed framework
+module. New v2 controllers should use their controller-owned renderer and the
+public APIs documented in [`docs/v2/v2.md`](v2/v2.md). Operator releases do not
+ship `install.yaml`.

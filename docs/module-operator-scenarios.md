@@ -12,6 +12,8 @@ Each scenario is self-contained. Read only the sections relevant to your module.
 
 - `root` refers to the root Go module (`github.com/opendatahub-io/odh-platform-utilities`)
 - `framework` refers to the framework Go module (`github.com/opendatahub-io/odh-platform-utilities/framework`)
+- This is a historical v1 scenario catalog. New controllers must use the
+  consolidated `/v2` module and follow [`docs/v2/v2.md`](v2/v2.md).
 - Code snippets are illustrative, not compilable standalone programs
 - See [GoDoc](https://pkg.go.dev/github.com/opendatahub-io/odh-platform-utilities) for full API signatures
 

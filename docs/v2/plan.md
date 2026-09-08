@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T15 and T21 complete**
+Status: **implementation in progress; T00–T16 and T21 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -139,7 +139,10 @@ buildable; the v2 runtime must not depend on it.
   root-configured golangci-lint for the integration package, and a live Kind
   attempt through the Go provider. The live run explicitly skipped because
   Docker/Podman was unavailable.
-- [ ] T16–T20 implementation and validation tasks executed.
+- [x] T16 removed the obsolete nested framework module and migrated repository
+  documentation and Makefile references; the root module remains as the
+  explicitly retained v1 compatibility surface.
+- [ ] T17–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.

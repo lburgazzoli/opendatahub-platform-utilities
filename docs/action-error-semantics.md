@@ -206,7 +206,7 @@ may inspect it with `errors.Is` or `errors.As`.
 
 ## Migration from the v1 framework
 
-The v2 package is `pkg/action`; the v1
+The v2 package is `v2/pkg/action`; the v1
 `framework/controller/actions/errors` package is not part of the v2 public
 layout. Deprecated `StopError` and `RequeueAfterError` markers are not carried
 forward as v2 APIs.
