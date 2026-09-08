@@ -1,6 +1,0 @@
-apiVersion: examples.odh.io/v1alpha1
-kind: HelmComponent
-metadata:
-  name: component
-spec:
-  managementState: Managed
