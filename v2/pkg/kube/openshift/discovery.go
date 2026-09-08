@@ -131,10 +131,10 @@ func IsSingleNodeCluster(ctx context.Context, reader client.Reader) (bool, error
 }
 
 func isSingleNodeBySchedulableNodes(ctx context.Context, reader client.Reader) (bool, error) {
-	nodes := new(unstructured.UnstructuredList)
+	nodes := unstructured.UnstructuredList{}
 	nodes.SetGroupVersionKind(gvk.Node)
 
-	if err := reader.List(ctx, nodes); err != nil {
+	if err := reader.List(ctx, &nodes); err != nil {
 		return false, fmt.Errorf("list nodes: %w", err)
 	}
 

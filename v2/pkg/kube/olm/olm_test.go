@@ -62,7 +62,7 @@ func TestNamespacedOLMResources(t *testing.T) {
 		Build()
 
 	g := NewWithT(t)
-	exists, err := olm.SubscriptionExists(t.Context(), reader, "operators", "example")
+	exists, err := olm.HasSubscription(t.Context(), reader, "operators", "example")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(exists).To(BeTrue())
 
@@ -70,11 +70,15 @@ func TestNamespacedOLMResources(t *testing.T) {
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(loaded.GetName()).To(Equal("example"))
 
-	exists, err = olm.CatalogSourceExists(t.Context(), reader, "operators", "catalog")
+	loadedCatalogSource, err := olm.GetCatalogSource(t.Context(), reader, "operators", "catalog")
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(loadedCatalogSource.GetName()).To(Equal("catalog"))
+
+	exists, err = olm.HasCatalogSource(t.Context(), reader, "operators", "catalog")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(exists).To(BeTrue())
 
-	exists, err = olm.CatalogSourceExists(t.Context(), reader, "operators", "missing")
+	exists, err = olm.HasCatalogSource(t.Context(), reader, "operators", "missing")
 	g.Expect(err).NotTo(HaveOccurred())
 	g.Expect(exists).To(BeFalse())
 }
@@ -85,7 +89,7 @@ func TestNamespacedOLMResourcesRequireNamespace(t *testing.T) {
 	reader := fake.NewClientBuilder().WithScheme(runtime.NewScheme()).Build()
 	g := NewWithT(t)
 
-	exists, err := olm.CatalogSourceExists(t.Context(), reader, "", "catalog")
+	exists, err := olm.HasCatalogSource(t.Context(), reader, "", "catalog")
 	g.Expect(exists).To(BeFalse())
 	g.Expect(err).To(MatchError(olm.ErrNamespaceRequired))
 

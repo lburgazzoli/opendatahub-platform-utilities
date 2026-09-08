@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -30,10 +31,10 @@ func OperatorVersion(
 		return "", ErrNamespaceRequired
 	}
 
-	list := new(unstructured.UnstructuredList)
+	list := unstructured.UnstructuredList{}
 	list.SetGroupVersionKind(gvk.OperatorCondition)
 
-	if err := reader.List(ctx, list, client.InNamespace(namespace)); err != nil {
+	if err := reader.List(ctx, &list, client.InNamespace(namespace)); err != nil {
 		return "", err
 	}
 
@@ -53,31 +54,32 @@ func OperatorVersion(
 	return "", ErrOperatorNotInstalled
 }
 
-// SubscriptionExists reports whether a named Subscription exists in a
-// namespace. The namespace is explicit because OLM subscriptions are scoped.
-func SubscriptionExists(ctx context.Context, reader client.Reader, namespace string, name string) (bool, error) {
-	if namespace == "" {
-		return false, ErrNamespaceRequired
-	}
-
-	list := new(unstructured.UnstructuredList)
-	list.SetGroupVersionKind(gvk.Subscription)
-
-	if err := reader.List(ctx, list, client.InNamespace(namespace)); err != nil {
+// HasSubscription reports whether a named Subscription exists in a namespace.
+// The namespace is explicit because OLM subscriptions are scoped.
+func HasSubscription(
+	ctx context.Context,
+	reader client.Reader,
+	namespace string,
+	name string,
+) (bool, error) {
+	_, err := GetSubscription(ctx, reader, namespace, name)
+	switch {
+	case err == nil:
+		return true, nil
+	case apierrors.IsNotFound(err):
+		return false, nil
+	default:
 		return false, err
 	}
-
-	for _, item := range list.Items {
-		if item.GetName() == name {
-			return true, nil
-		}
-	}
-
-	return false, nil
 }
 
 // GetSubscription returns a namespaced OLM Subscription as unstructured data.
-func GetSubscription(ctx context.Context, reader client.Reader, namespace string, name string) (*unstructured.Unstructured, error) {
+func GetSubscription(
+	ctx context.Context,
+	reader client.Reader,
+	namespace string,
+	name string,
+) (*unstructured.Unstructured, error) {
 	if namespace == "" {
 		return nil, ErrNamespaceRequired
 	}
@@ -92,24 +94,46 @@ func GetSubscription(ctx context.Context, reader client.Reader, namespace string
 	return subscription, nil
 }
 
-// CatalogSourceExists reports whether a namespaced CatalogSource exists.
+// HasCatalogSource reports whether a namespaced CatalogSource exists.
 // NotFound means false; missing OLM APIs and other failures are returned.
-func CatalogSourceExists(ctx context.Context, reader client.Reader, namespace string, name string) (bool, error) {
+func HasCatalogSource(
+	ctx context.Context,
+	reader client.Reader,
+	namespace string,
+	name string,
+) (bool, error) {
+	_, err := GetCatalogSource(ctx, reader, namespace, name)
+	switch {
+	case err == nil:
+		return true, nil
+	case apierrors.IsNotFound(err):
+		return false, nil
+	default:
+		return false, err
+	}
+}
+
+// GetCatalogSource returns a namespaced OLM CatalogSource as unstructured data.
+func GetCatalogSource(
+	ctx context.Context,
+	reader client.Reader,
+	namespace string,
+	name string,
+) (*unstructured.Unstructured, error) {
 	if namespace == "" {
-		return false, ErrNamespaceRequired
+		return nil, ErrNamespaceRequired
 	}
 
 	catalogSource := new(unstructured.Unstructured)
 	catalogSource.SetGroupVersionKind(gvk.CatalogSource)
 
-	err := reader.Get(ctx, client.ObjectKey{Namespace: namespace, Name: name}, catalogSource)
-	if err == nil {
-		return true, nil
+	if err := reader.Get(
+		ctx,
+		client.ObjectKey{Namespace: namespace, Name: name},
+		catalogSource,
+	); err != nil {
+		return nil, err
 	}
 
-	if client.IgnoreNotFound(err) == nil {
-		return false, nil
-	}
-
-	return false, err
+	return catalogSource, nil
 }
