@@ -1,25 +1,53 @@
 # Helm builder controller
 
-This example is a complete controller-runtime project that renders a Helm
-chart and deploys its resources with the v2 action pipeline.
+This example is a controller-runtime controller that renders a Helm chart and
+deploys its resources through the v2 reconciler builder. Each `HelmComponent`
+uses the configured module namespace, and the example chart renders a
+ConfigMap there.
 
-It uses the v2 manager wrapper and cache-coherent client. Its Helm render
-action is registered through `reconciler.Builder`; the plain example uses the
-same API, chart, deploy options, status conditions, and manager wrapper while
-calling `Reconcile` and `deploy.Action.Run` directly.
+## Configuration and startup
 
-The controller is registered from `internal/controller` with:
+`make run` loads startup configuration from environment variables. Set:
 
-```go
-reconciler.For(manager, v1alpha1.NewHelmComponent()).
-    WithActionFunc(reconcilerValue.render).
-    WithAction(deploy.New(deploy.WithFieldOwner("helm-example"))).
-    Build()
+- `HELM_EXAMPLE_CHART` — required path to the Helm chart.
+- `HELM_EXAMPLE_NAMESPACE` — required namespace for the module and rendered
+  resources.
+- `HELM_EXAMPLE_HEALTH_PROBE_BIND_ADDRESS` — optional health probe address;
+  defaults to `:8081`.
+
+Set `HELM_EXAMPLE_CONFIGURATION_PATH` to an optional directory containing the
+configuration files `chart-path`, `namespace`, and
+`controller.health.bind-address`. Environment variables override file values.
+
+For a local run, for example:
+
+```sh
+HELM_EXAMPLE_CHART=./config/manager/chart \
+HELM_EXAMPLE_NAMESPACE=default \
+make run
 ```
 
-The `-chart` argument must point to a Helm chart whose templates use
-`.Values.name`. Apply the CRD in `config/crd/bases` and the sample in
-`config/samples` before running the example. `make run` uses the embedded
-example chart; `make docker-build IMG=...` builds an image containing the same
-chart, and `make deploy IMG=...` installs the generated controller manifests.
-Use the workspace in `examples/go.work` when building either module.
+The deployment manifest configures the container to use the chart at
+`/charts/component` and the `default` namespace. Apply the generated CRD and a
+`HelmComponent` resource with `make install` before exercising the controller
+against a cluster.
+
+## Make targets
+
+From this directory:
+
+- `make all` runs formatting, generation, vet, lint, unit tests, and the
+  isolated Kind integration test.
+- `make fmt`, `make generate`, `make vet`, and `make lint` run the corresponding
+  checks.
+- `make test` runs unit tests and does not require a container runtime.
+- `make test-integration` runs the isolated Kind integration module.
+- `make build` and `make run` build or run the controller.
+- `make install` and `make uninstall` apply or remove the Kubernetes manifests.
+- `make docker-build IMG=...`, `make docker-push IMG=...`, `make deploy IMG=...`,
+  and `make undeploy` manage the controller image and deployment.
+- `make tidy` updates the example module's dependencies.
+
+From `v2/examples`, the aggregate `all` and `test-integration` targets provide
+the same validation entry points for the example and its isolated integration
+module.

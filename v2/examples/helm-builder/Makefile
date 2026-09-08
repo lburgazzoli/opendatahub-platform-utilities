@@ -11,7 +11,7 @@ GO_MOD_VERSION := $(shell awk '/^go /{print $$2; exit}' go.mod)
 export GOTOOLCHAIN := go$(GO_MOD_VERSION)
 
 .PHONY: all
-all: fmt generate vet lint test
+all: fmt generate vet lint test test-integration
 
 .PHONY: fmt
 fmt:

@@ -1,5 +1,5 @@
 .PHONY: all
-all: fmt generate vet lint test
+all: fmt generate vet lint test test-integration
 
 .PHONY: fmt
 fmt:

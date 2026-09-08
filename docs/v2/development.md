@@ -129,6 +129,9 @@ constraints as the original implementation.
   forwards controller-runtime methods. Example controllers should configure
   the manager, client, and cache with normal controller-runtime options and
   keep their business flow minimal.
+- When a pipeline action needs a typed primary object, use the shared generic
+  reconciler request accessor instead of repeating an action-local type
+  assertion and error sentinel.
 
 ## Controller-integration learnings
 

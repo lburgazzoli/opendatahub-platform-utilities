@@ -3,6 +3,7 @@
 package integration_test
 
 import (
+	"context"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -32,7 +33,7 @@ func TestHelmBuilderReconcilesOnKind(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		g.Expect(engine.Close(t.Context())).To(gomega.Succeed())
+		g.Expect(engine.Close(context.WithoutCancel(t.Context()))).To(gomega.Succeed())
 	})
 
 	scheme := runtime.NewScheme()
@@ -57,6 +58,7 @@ func TestHelmBuilderReconcilesOnKind(t *testing.T) {
 
 	component := v1alpha1.NewHelmComponent()
 	component.Name = "default-helmcomponent"
+	component.Namespace = configuration.Namespace
 	g.Expect(kubeClient.Create(t.Context(), component)).To(gomega.Succeed())
 
 	waitForReady(t, kubeClient, component)

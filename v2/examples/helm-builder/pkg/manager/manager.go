@@ -8,7 +8,6 @@ import (
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	ctrl "sigs.k8s.io/controller-runtime"
-	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	ctrlmanager "sigs.k8s.io/controller-runtime/pkg/manager"
@@ -58,9 +57,7 @@ func New(
 	runtimeManager, err := ctrl.NewManager(kubeConfig, ctrl.Options{
 		Scheme:                 scheme,
 		HealthProbeBindAddress: configuration.HealthProbeBindAddress,
-		Cache: cache.Options{
-			ReaderFailOnMissingInformer: true,
-		},
+		Cache:                  cacheOptions(configuration.Namespace),
 		Client: client.Options{
 			Cache: &client.CacheOptions{
 				Unstructured: true,

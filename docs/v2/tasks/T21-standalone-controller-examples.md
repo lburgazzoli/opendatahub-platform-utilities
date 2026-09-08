@@ -28,10 +28,13 @@ Read and follow [`../development.md`](../development.md) before starting.
 
 ## Verification
 
-Run formatting, controller generation, vet, golangci-lint, unit tests, and
-race tests for the example and its isolated integration module. Confirm that
-generated CRD/RBAC output is current and that the controller exposes the
-successful status condition through a real Kind-backed reconciliation.
+Run `make -C v2/examples all` to cover formatting, controller generation, vet,
+golangci-lint, unit tests, and the isolated integration module. The unit-only
+path remains available through `make -C v2/examples test`, while
+`make -C v2/examples test-integration` runs the Kind-backed test explicitly.
+Confirm that generated CRD/RBAC output is current and that the controller
+exposes the successful status condition through a real Kind-backed
+reconciliation.
 
 ## Dependencies
 

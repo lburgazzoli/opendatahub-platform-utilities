@@ -1,8 +1,6 @@
 package v1alpha1
 
 import (
-	"errors"
-
 	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -14,8 +12,6 @@ var GroupVersion = schema.GroupVersion{Group: "examples.odh.io", Version: "v1alp
 
 //nolint:gochecknoglobals // the example API exposes its primary GVK.
 var ComponentGVK = GroupVersion.WithKind("HelmComponent")
-
-var ErrRequestInstance = errors.New("request instance has unexpected type")
 
 // HelmComponent is the primary object reconciled by the example controller.
 //

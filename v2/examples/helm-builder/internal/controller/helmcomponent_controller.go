@@ -63,19 +63,14 @@ func (r *HelmComponentReconciler) render(
 	ctx context.Context,
 	request *pipeline.Request,
 ) error {
-	component, ok := request.Instance.(*v1alpha1.HelmComponent)
-	if !ok {
-		return fmt.Errorf(
-			"%w: expected %T, got %T",
-			v1alpha1.ErrRequestInstance,
-			new(v1alpha1.HelmComponent),
-			request.Instance,
-		)
+	component, err := reconciler.Instance[*v1alpha1.HelmComponent](request)
+	if err != nil {
+		return err
 	}
 
 	rendered, err := r.renderer.Render(ctx, manifestengine.WithValues(map[string]any{
 		"name":      component.GetName(),
-		"namespace": r.configuration.Namespace,
+		"namespace": component.GetNamespace(),
 	}))
 	if err != nil {
 		return fmt.Errorf("render Helm chart: %w", err)
