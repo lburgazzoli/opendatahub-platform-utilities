@@ -41,6 +41,10 @@ lint-fix: ## Run golangci-lint with --fix.
 test: ## Run tests with race detector and coverage.
 	go test -race -coverprofile="$(COVERAGE_FILE)" ./...
 
+.PHONY: test-integration
+test-integration: ## Run the Kind-backed integration suite.
+	go test -race -count=1 -tags=integration ./test/integration
+
 .PHONY: tidy
 tidy: ## Run go mod tidy.
 	go mod tidy

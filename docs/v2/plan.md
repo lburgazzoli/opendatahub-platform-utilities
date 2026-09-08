@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T14 and T21 complete**
+Status: **implementation in progress; T00–T15 and T21 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -131,7 +131,15 @@ buildable; the v2 runtime must not depend on it.
   `testkit/go.work` for local v2, Kind, and integration-harness development.
 - [x] T14 validation passed: workspace module resolution, race-tested unit
   tests, `go vet`, and root-configured golangci-lint for `testkit/integration`.
-- [ ] T15–T20 implementation and validation tasks executed.
+- [x] T15 added the isolated v2 Kind integration suite in
+  `v2/test/integration`, with a v2 workspace linking `testkit/kind`, and a
+  `test-integration` Make target. The suite covers manager startup, Helm
+  rendering, SSA deployment, ownership, GC, status, and finalizer cleanup.
+- [x] T15 validation passed: v2 unit/race tests, integration-package compile,
+  root-configured golangci-lint for the integration package, and a live Kind
+  attempt through the Go provider. The live run explicitly skipped because
+  Docker/Podman was unavailable.
+- [ ] T16–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.
