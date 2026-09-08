@@ -4,12 +4,14 @@ import (
 	"context"
 	"fmt"
 	"slices"
+	"sync"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
 )
 
 type Pipeline struct {
-	options Options
+	options  Options
+	validate func() error
 }
 
 func New(options ...Option) *Pipeline {
@@ -21,12 +23,15 @@ func New(options ...Option) *Pipeline {
 		}
 	}
 
-	return &Pipeline{options: Options{
+	configuredPipeline := &Pipeline{options: Options{
 		Before:  slices.Clone(configured.Before),
 		Main:    slices.Clone(configured.Main),
 		After:   slices.Clone(configured.After),
 		Cleanup: slices.Clone(configured.Cleanup),
 	}}
+	configuredPipeline.validate = sync.OnceValue(configuredPipeline.validateOptions)
+
+	return configuredPipeline
 }
 
 func (p *Pipeline) WithBeforeAction(actionValue Action, options ...ActionOption) *Pipeline {
@@ -79,6 +84,10 @@ func (p *Pipeline) WithCleanupActionFunc(
 }
 
 func (p *Pipeline) Validate() error {
+	return p.validate()
+}
+
+func (p *Pipeline) validateOptions() error {
 	seen := make(map[string]string)
 	phases := []struct {
 		name string

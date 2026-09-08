@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
@@ -29,11 +30,12 @@ func Apply(
 	unstructured.RemoveNestedField(u.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(u.Object, "status")
 
-	if err := cli.Apply(
+	err = cli.Apply(
 		ctx,
 		client.ApplyConfigurationFromUnstructured(u),
 		options...,
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("apply %s: %w", gvk, err)
 	}
 
@@ -41,7 +43,8 @@ func Apply(
 	case *unstructured.Unstructured:
 		target.Object = u.Object
 	default:
-		if err := cli.Scheme().Convert(u, object, ctx); err != nil {
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, object)
+		if err != nil {
 			return fmt.Errorf("copy applied %s: %w", gvk, err)
 		}
 	}
@@ -69,11 +72,12 @@ func ApplyStatus(
 	unstructured.RemoveNestedField(u.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(u.Object, "metadata", "resourceVersion")
 
-	if err := cli.Status().Apply(
+	err = cli.Status().Apply(
 		ctx,
 		client.ApplyConfigurationFromUnstructured(u),
 		options...,
-	); err != nil {
+	)
+	if err != nil {
 		return fmt.Errorf("apply status %s: %w", gvk, err)
 	}
 
@@ -81,7 +85,8 @@ func ApplyStatus(
 	case *unstructured.Unstructured:
 		target.Object = u.Object
 	default:
-		if err := cli.Scheme().Convert(u, object, ctx); err != nil {
+		err = runtime.DefaultUnstructuredConverter.FromUnstructured(u.Object, object)
+		if err != nil {
 			return fmt.Errorf("copy applied status %s: %w", gvk, err)
 		}
 	}

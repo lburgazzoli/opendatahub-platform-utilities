@@ -31,6 +31,21 @@ type validatingAction struct {
 	validationCalled *bool
 }
 
+type countingValidator struct {
+	validationCalls *int
+}
+
+func (a *countingValidator) Name() string { return "counted" }
+
+func (a *countingValidator) Execute(context.Context, *pipeline.Request) error {
+	return nil
+}
+
+func (a *countingValidator) Validate() error {
+	*a.validationCalls++
+	return nil
+}
+
 func (a *validatingAction) Name() string { return a.action.Name() }
 
 func (a *validatingAction) Execute(ctx context.Context, request *pipeline.Request) error {
@@ -140,6 +155,21 @@ func TestValidateRejectsNamesBeforeCallingValidators(t *testing.T) {
 
 	g.Expect(pipelineValue.Validate()).Should(MatchError(ContainSubstring("duplicated")))
 	g.Expect(validationCalled).Should(BeFalse())
+}
+
+func TestPipelineCachesValidation(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	validationCalls := 0
+	pipelineValue := pipeline.New().WithAction(&countingValidator{
+		validationCalls: &validationCalls,
+	})
+
+	g.Expect(pipelineValue.Validate()).Should(Succeed())
+	g.Expect(pipelineValue.Run(t.Context(), &pipeline.Request{}).Err()).ShouldNot(HaveOccurred())
+	g.Expect(pipelineValue.Cleanup(t.Context(), &pipeline.Request{}).Err()).ShouldNot(HaveOccurred())
+	g.Expect(validationCalls).Should(Equal(1))
 }
 
 func TestCleanupStopsOnlyOnBlockingErrors(t *testing.T) {
