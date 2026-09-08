@@ -119,6 +119,10 @@ buildable; the v2 runtime must not depend on it.
 - [x] T21 framework/pipeline standalone Helm controller example and isolated
   Kind integration committed in `74ec1c6`; the plain-controller comparison is
   deferred.
+- [x] The `sol-high` T21 adversarial review findings were remediated in
+  `5fe3c33`, including namespace-scoped caching, safe Kind cleanup, aggregate
+  integration validation, README alignment, and the shared generic
+  `reconciler.Instance` request accessor.
 - [ ] T14–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
