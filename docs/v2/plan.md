@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T12 complete**
+Status: **implementation in progress; T00–T13 and T21 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -33,6 +33,7 @@ T00 audit
                       -> T12 reconciler
 T08 -> T13 render integration runs in parallel with T09–T12
 T12 + T13 -> T14 consumer migration
+T12 + T13 -> T21 standalone controller examples
 T01 + T12 + T14 -> T15 Kind integration suite
 all implementation tasks -> T16 legacy removal
 T16 -> T17 adversarial review (sol-high)
@@ -61,7 +62,7 @@ buildable; the v2 runtime must not depend on it.
 ## Documentation-pack validation
 
 - [x] Master relocation and relative-link correction checked.
-- [x] All 21 task files exist and have objective, verification, and dependency
+- [x] All 22 task files exist and have objective, verification, and dependency
   sections.
 - [x] Local adversarial pass corrected the renderer-to-pipeline dependency in
   T13 and the task graph.
@@ -114,7 +115,9 @@ buildable; the v2 runtime must not depend on it.
 - [x] T12 controller integration implemented with handlers, predicates,
   reconciler lifecycle, status/finalizer handling, dynamic ownership, and
   GVK resource helpers in `798bada`.
-- [ ] T13–T20 implementation and validation tasks executed.
+- [x] T13 renderer integration committed in `8e0705d`.
+- [x] T21 standalone controller examples committed in `db49f20`.
+- [ ] T14–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.
