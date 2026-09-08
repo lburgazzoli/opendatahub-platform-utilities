@@ -159,15 +159,21 @@ func (c *Client) DeleteAllOf(
 	return c.inner.DeleteAllOf(ctx, object, opts...)
 }
 
-func (c *Client) Status() client.SubResourceWriter { return c.inner.Status() }
+func (c *Client) Status() client.SubResourceWriter {
+	return c.inner.Status()
+}
 
 func (c *Client) SubResource(name string) client.SubResourceClient {
 	return c.inner.SubResource(name)
 }
 
-func (c *Client) Scheme() *runtime.Scheme { return c.inner.Scheme() }
+func (c *Client) Scheme() *runtime.Scheme {
+	return c.inner.Scheme()
+}
 
-func (c *Client) RESTMapper() meta.RESTMapper { return c.inner.RESTMapper() }
+func (c *Client) RESTMapper() meta.RESTMapper {
+	return c.inner.RESTMapper()
+}
 
 func (c *Client) GroupVersionKindFor(object runtime.Object) (schema.GroupVersionKind, error) {
 	return c.inner.GroupVersionKindFor(object)

@@ -34,10 +34,16 @@ func New(inner ctrlmanager.Manager, options ...Option) *Manager {
 	return wrapped
 }
 
-func (m *Manager) GetClient() client.Client { return m.wrappedClient }
+func (m *Manager) GetClient() client.Client {
+	return m.wrappedClient
+}
 
-func (m *Manager) GetManifestsBasePath() string { return m.manifestsBasePath }
+func (m *Manager) GetManifestsBasePath() string {
+	return m.manifestsBasePath
+}
 
-func (m *Manager) GetChartsBasePath() string { return m.chartsBasePath }
+func (m *Manager) GetChartsBasePath() string {
+	return m.chartsBasePath
+}
 
 var _ ctrlmanager.Manager = (*Manager)(nil)
