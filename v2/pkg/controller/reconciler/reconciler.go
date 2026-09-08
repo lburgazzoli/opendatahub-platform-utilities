@@ -88,12 +88,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return ctrl.Result{}, nil
 	}
 
-	requestValue := &pipeline.Request{
-		Client:     r.client,
-		Instance:   instance,
-		Resources:  resources.New(nil),
-		Extensions: pipeline.Extension{},
-	}
+	requestValue := r.request(instance)
 
 	outcome := r.pipeline.Run(ctx, requestValue)
 	err = r.applyStatus(ctx, instance, outcome)
@@ -138,12 +133,7 @@ func (r *Reconciler) cleanup(ctx context.Context, instance api.PlatformObject) (
 		defer cancel()
 	}
 
-	requestValue := &pipeline.Request{
-		Client:     r.client,
-		Instance:   instance,
-		Resources:  resources.New(nil),
-		Extensions: pipeline.Extension{},
-	}
+	requestValue := r.request(instance)
 	outcome := r.pipeline.Cleanup(cleanupContext, requestValue)
 
 	if hasDeadline && !time.Now().Before(deadline) {

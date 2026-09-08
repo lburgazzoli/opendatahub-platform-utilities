@@ -2,7 +2,6 @@ package deploy
 
 import (
 	"maps"
-	"strings"
 	"time"
 
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -201,7 +200,7 @@ func defaultOptions() Options {
 	return Options{
 		MetadataPolicy: platformmetadata.DefaultPolicy(),
 		FieldOwner: func(owner client.Object) string {
-			return strings.ToLower(owner.GetObjectKind().GroupVersionKind().Kind)
+			return owner.GetObjectKind().GroupVersionKind().Kind
 		},
 		Sort:                 ApplyOrder,
 		ManagedAnnotation:    annotations.ManagedByODHOperator,

@@ -130,7 +130,7 @@ func (a *Action) deployOne(
 	}
 
 	// Apply the fully prepared object with the resolved field owner.
-	if err := a.apply(ctx, values.Client, values.Owner, desired); err != nil {
+	if err := a.apply(ctx, values.Client, values, desired); err != nil {
 		return false, err
 	}
 

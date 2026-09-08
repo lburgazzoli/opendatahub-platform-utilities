@@ -51,11 +51,10 @@ func Setup(manager manager.Manager, configuration *moduleconfig.Config) error {
 		manager,
 		v1alpha1.NewHelmComponent(),
 		reconciler.WithControllerName(controllerName),
-		reconciler.WithFieldOwner(controllerName),
 	).
 		Owns(&corev1.ConfigMap{}).
 		WithActionFunc(r.render, pipeline.WithName("render")).
-		WithAction(deploy.New(deploy.WithFieldOwner(controllerName))).
+		WithAction(deploy.New()).
 		Build()
 }
 

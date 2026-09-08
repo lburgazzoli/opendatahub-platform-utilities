@@ -57,10 +57,13 @@ func (a *Action) customize(
 func (a *Action) apply(
 	ctx context.Context,
 	kubernetesClient client.Client,
-	owner client.Object,
+	values RunOptions,
 	desired *unstructured.Unstructured,
 ) error {
-	fieldOwner := a.options.FieldOwner(owner)
+	fieldOwner := values.FieldOwner
+	if fieldOwner == "" {
+		fieldOwner = a.options.FieldOwner(values.Owner)
+	}
 	if fieldOwner == "" {
 		return ErrFieldOwner
 	}

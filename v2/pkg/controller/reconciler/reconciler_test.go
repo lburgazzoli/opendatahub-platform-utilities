@@ -24,10 +24,12 @@ func TestReconcileLoadsFreshObjectAndProjectsStatus(t *testing.T) {
 	kubernetesClient := testClient(object)
 	profile := api.PlatformProfile{Kind: "OpenShift", Version: "4.18"}
 	var processed *testObject
+	var extensions pipeline.Extension
 
 	actionValue := pipeline.ActionFunc{
 		ActionName: "observe",
 		ExecuteFunc: func(_ context.Context, request *pipeline.Request) error {
+			extensions = request.Extensions
 			current, ok := request.Instance.(*testObject)
 			if !ok {
 				return errors.New("test action received an unexpected object") //nolint:err113 // Test-only type guard.
@@ -61,6 +63,10 @@ func TestReconcileLoadsFreshObjectAndProjectsStatus(t *testing.T) {
 	g.Expect(err).ShouldNot(HaveOccurred())
 	g.Expect(result).Should(BeZero())
 	g.Expect(processed).ShouldNot(BeNil())
+	g.Expect(extensions).Should(Equal(pipeline.Extension{
+		pipeline.ExtensionControllerName: "component",
+		pipeline.ExtensionFieldOwner:     "component",
+	}))
 	g.Expect(processed.Status.ObservedGeneration).Should(Equal(processed.GetGeneration()))
 	g.Expect(processed.Status.Platform).Should(Equal(&profile))
 	g.Expect(processed.Status.Conditions).Should(ContainElement(HaveField("Type", "ProvisioningSucceeded")))

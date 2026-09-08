@@ -10,9 +10,10 @@ import (
 
 // RunOptions contains values that vary for each deployment invocation.
 type RunOptions struct {
-	Client    client.Client
-	Owner     client.Object
-	Resources resources.Accessor
+	Client     client.Client
+	Owner      client.Object
+	Resources  resources.Accessor
+	FieldOwner string
 }
 
 // ApplyTo copies invocation values into target. Nil values leave target
@@ -26,6 +27,9 @@ func (o RunOptions) ApplyTo(target *RunOptions) {
 	}
 	if o.Resources != nil {
 		target.Resources = o.Resources
+	}
+	if o.FieldOwner != "" {
+		target.FieldOwner = o.FieldOwner
 	}
 }
 

@@ -132,6 +132,10 @@ constraints as the original implementation.
 - When a pipeline action needs a typed primary object, use the shared generic
   reconciler request accessor instead of repeating an action-local type
   assertion and error sentinel.
+- Reconciler-owned controller metadata belongs in documented pipeline
+  extensions. Set controller name and resolved field owner once when creating
+  normal and cleanup requests; actions must consume those extensions instead
+  of requiring every controller to repeat identity options.
 
 ## Controller-integration learnings
 

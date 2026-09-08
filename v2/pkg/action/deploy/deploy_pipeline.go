@@ -8,10 +8,19 @@ import (
 
 // Execute maps the pipeline request to the programmatic deploy contract.
 func (a *Action) Execute(ctx context.Context, request *pipeline.Request) error {
-	_, err := a.Run(ctx, RunOptions{
+	_, err := a.Run(ctx, runOptionsFromRequest(request))
+	return err
+}
+
+func runOptionsFromRequest(request *pipeline.Request) RunOptions {
+	options := RunOptions{
 		Client:    request.Client,
 		Owner:     request.Instance,
 		Resources: request.Resources,
-	})
-	return err
+	}
+	if fieldOwner, ok := request.Extensions[pipeline.ExtensionFieldOwner].(string); ok {
+		options.FieldOwner = fieldOwner
+	}
+
+	return options
 }

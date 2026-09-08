@@ -8,6 +8,13 @@ import (
 
 type Extension map[string]any
 
+const (
+	// ExtensionControllerName carries the reconciler's controller identity.
+	ExtensionControllerName = "controller-name"
+	// ExtensionFieldOwner carries the reconciler-resolved SSA field owner.
+	ExtensionFieldOwner = "field-owner"
+)
+
 type Request struct {
 	Client     client.Client
 	Instance   api.PlatformObject
