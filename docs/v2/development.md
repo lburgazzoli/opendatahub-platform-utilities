@@ -114,6 +114,44 @@ constraints as the original implementation.
   versus unstructured apply benchmarks separate from full fake-client runs so
   client/server-emulation overhead is not mistaken for deploy-action overhead.
 
+## Controller-integration learnings
+
+- Keep controller-runtime lifecycle state in `pkg/controller/reconciler`; the
+  mutable dynamic-watch registry belongs in the dedicated
+  `reconciler/dynamicwatcher` package. Seed static watch GVKs and register each
+  dynamic GVK at most once with a `sets.Set` protected by an `RWMutex` when the
+  registry has a read-dominant fast path.
+- Use one dynamic watch handler with owner-first routing. Match the complete
+  owner GVK and controller owner reference; CRDs never use owner references.
+  Fall back to the canonical owner name and owner namespace annotations when
+  no matching controller owner exists. An owner reference has no namespace:
+  resolve primary scope through the REST mapper, use the dependent namespace
+  only for namespaced primaries, and use an empty namespace for cluster-scoped
+  primaries.
+- Keep cancellation checks at the snapshot-iteration boundary. Do not add a
+  one-use synchronization helper merely to check `ctx.Done`; watch
+  registration itself is synchronous and cannot be interrupted by that
+  context.
+- Dynamic watches use the existing controller-runtime event policy of
+  generation, label, or annotation changes, with the local false-default
+  `Funcs` wrapper so unspecified event classes are rejected.
+- Predicate helpers use a local `Funcs` type whose omitted event callbacks
+  return `false`; never rely on controller-runtime `predicate.Funcs` defaults
+  when a predicate is intended to reject an event class. Group related
+  predicates in cohesive files instead of creating one predicate file per
+  function.
+- The reconciler must load one authoritative primary object, run only cleanup
+  during deletion, add the finalizer before normal actions, and persist status
+  only on the normal path. Successful cleanup emits a normal event; deadline
+  completion emits a warning event.
+- Apply helpers copy server results back to typed objects with
+  `runtime.DefaultUnstructuredConverter` when the target is not already
+  unstructured. Scheme conversion may reject a valid same-type fixture when no
+  explicit conversion is registered.
+- Cache immutable pipeline configuration validation with `sync.OnceValue` (or
+  an equivalent standard-library mechanism). `Build` must force validation
+  once, while later `Run` and `Cleanup` calls only read the cached result.
+
 ## Tests and integration infrastructure
 
 - Use the standard `testing` package with vanilla Gomega assertions via

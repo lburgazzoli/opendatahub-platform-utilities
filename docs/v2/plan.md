@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T11 complete**
+Status: **implementation in progress; T00–T12 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -111,5 +111,14 @@ buildable; the v2 runtime must not depend on it.
 - [x] T11 supporting actions implemented with safe selectors, isolated
   pipeline adapters, OpenShift ImageStream parsing, release discovery, and
   focused tests in `5bdd036`.
-- [ ] T12–T20 implementation and validation tasks executed.
+- [x] T12 controller integration implemented with handlers, predicates,
+  reconciler lifecycle, status/finalizer handling, dynamic ownership, and
+  GVK resource helpers in `798bada`.
+- [ ] T13–T20 implementation and validation tasks executed.
+- [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
+  full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
+  controller/resource tests.
+- [ ] The pinned `make -C v2 lint` check remains blocked by unavailable
+  `proxy.golang.org` DNS access; rerun it when dependency network access is
+  available.
 - [ ] Final implementation validation passed.
