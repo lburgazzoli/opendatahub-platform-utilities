@@ -43,10 +43,10 @@ func failedImageTags(list *unstructured.UnstructuredList) (int, []string, error)
 
 	for _, stream := range list.Items {
 		tags, found, err := unstructured.NestedSlice(stream.Object, "status", "tags")
-		if err != nil {
+		switch {
+		case err != nil:
 			return 0, nil, fmt.Errorf("inspect ImageStream %s status.tags: %w", stream.GetName(), err)
-		}
-		if !found {
+		case !found:
 			continue
 		}
 

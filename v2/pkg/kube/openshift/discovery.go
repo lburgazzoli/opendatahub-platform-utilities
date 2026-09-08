@@ -42,10 +42,10 @@ func GetVersion(ctx context.Context, reader client.Reader) (string, error) {
 	}
 
 	history, found, err := unstructured.NestedSlice(clusterVersion.Object, "status", "history")
-	if err != nil {
+	switch {
+	case err != nil:
 		return "", fmt.Errorf("read OpenShift version history: %w", err)
-	}
-	if !found || len(history) == 0 {
+	case !found || len(history) == 0:
 		return "", fmt.Errorf("OpenShift version history is empty")
 	}
 
@@ -84,10 +84,10 @@ func IsFIPSEnabled(ctx context.Context, reader client.Reader) (bool, error) {
 	}
 
 	data, found, err := unstructured.NestedStringMap(configMap.Object, "data")
-	if err != nil {
+	switch {
+	case err != nil:
 		return false, fmt.Errorf("read cluster FIPS configuration data: %w", err)
-	}
-	if !found || data["install-config"] == "" {
+	case !found || data["install-config"] == "":
 		return false, nil
 	}
 
@@ -166,10 +166,10 @@ func GetAuthenticationMode(ctx context.Context, reader client.Reader) (string, e
 		"spec",
 		"type",
 	)
-	if err != nil {
+	switch {
+	case err != nil:
 		return "", fmt.Errorf("read OpenShift authentication type: %w", err)
-	}
-	if !found || authenticationType == "" {
+	case !found || authenticationType == "":
 		return AuthenticationIntegratedOAuth, nil
 	}
 
@@ -210,10 +210,10 @@ func GetServiceAccountIssuer(ctx context.Context, reader client.Reader) (string,
 		"spec",
 		"serviceAccountIssuer",
 	)
-	if err != nil {
+	switch {
+	case err != nil:
 		return "", fmt.Errorf("read service-account issuer: %w", err)
-	}
-	if !found {
+	case !found:
 		return "", nil
 	}
 

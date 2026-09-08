@@ -31,10 +31,10 @@ func HasCRD(ctx context.Context, reader client.Reader, name string) (bool, error
 	}
 
 	conditions, found, err := unstructured.NestedSlice(definition.Object, "status", "conditions")
-	if err != nil {
+	switch {
+	case err != nil:
 		return false, fmt.Errorf("read CRD %q conditions: %w", name, err)
-	}
-	if !found {
+	case !found:
 		return false, nil
 	}
 
