@@ -113,6 +113,10 @@ constraints as the original implementation.
 - Benchmark changes at the operation boundary that matters. Keep direct typed
   versus unstructured apply benchmarks separate from full fake-client runs so
   client/server-emulation overhead is not mistaken for deploy-action overhead.
+- Resolve manifest-kit engine, core package, and concrete renderer versions as
+  one compatible upstream set. Do not mix renderer releases with a different
+  `Process` signature or package utility API; verify the complete set with a
+  direct composed-renderer test.
 
 ## Controller-integration learnings
 

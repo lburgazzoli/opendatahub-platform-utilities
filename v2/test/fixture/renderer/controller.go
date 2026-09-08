@@ -5,9 +5,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
@@ -18,17 +18,20 @@ var (
 	ErrResourcesRequired  = errors.New("renderer resources accessor is required")
 )
 
+// ValuesFunc derives render values from the current reconciled instance.
+type ValuesFunc func(api.PlatformObject) map[string]any
+
 // Controller owns the renderer and the values derived from its module.
 type Controller struct {
 	renderer *manifestengine.Engine
-	values   map[string]any
+	values   ValuesFunc
 }
 
 // NewController creates a controller-owned rendering example.
-func NewController(renderer *manifestengine.Engine, values map[string]any) *Controller {
+func NewController(renderer *manifestengine.Engine, values ValuesFunc) *Controller {
 	return &Controller{
 		renderer: renderer,
-		values:   maps.Clone(values),
+		values:   values,
 	}
 }
 
@@ -47,7 +50,12 @@ func (c *Controller) RenderResources(ctx context.Context, request *pipeline.Requ
 		return ErrResourcesRequired
 	}
 
-	rendered, err := c.renderer.Render(ctx, manifestengine.WithValues(c.values))
+	var values map[string]any
+	if c.values != nil {
+		values = c.values(request.Instance)
+	}
+
+	rendered, err := c.renderer.Render(ctx, manifestengine.WithValues(values))
 	if err != nil {
 		return fmt.Errorf("render resources: %w", err)
 	}

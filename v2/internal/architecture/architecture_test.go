@@ -58,6 +58,47 @@ func TestDependencyDirectionRejectsPipelineImportsOutsideAdapters(t *testing.T) 
 	g.Expect(validateFile("pkg/action/example/action.go", path)).Should(MatchError(ContainSubstring("pipeline imports")))
 }
 
+func TestValidateImportPathsClassifiesModuleBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		imported  string
+		forbidden bool
+	}{
+		{
+			name:     "manifest kit package is allowed",
+			imported: "github.com/k8s-manifest-kit/engine/pkg",
+		},
+		{
+			name:      "legacy package is forbidden",
+			imported:  legacyModulePath + "/pkg/resources",
+			forbidden: true,
+		},
+		{
+			name:      "legacy framework is forbidden",
+			imported:  legacyModulePath + "/framework/controller",
+			forbidden: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			err := validateImportPaths("pkg/example.go", []string{test.imported})
+
+			if test.forbidden {
+				g.Expect(err).Should(MatchError(ContainSubstring("forbidden v1 path")))
+				return
+			}
+
+			g.Expect(err).Should(Succeed())
+		})
+	}
+}
+
 func moduleRoot(t *testing.T) string {
 	t.Helper()
 
