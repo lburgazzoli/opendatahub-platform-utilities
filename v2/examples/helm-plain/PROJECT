@@ -1,0 +1,6 @@
+domain: odh.io
+layout:
+- go.kubebuilder.io/v4
+projectName: helm-plain
+repo: github.com/opendatahub-io/odh-platform-utilities/v2/examples/helm-plain
+version: "3"
