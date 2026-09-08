@@ -8,6 +8,8 @@ require (
 	github.com/k8s-manifest-kit/renderer-helm v0.2.0
 	github.com/k8s-manifest-kit/renderer-kustomize v0.1.0
 	github.com/onsi/gomega v1.39.1
+	github.com/openshift/api v0.0.0-20260610192510-1b2a074e0bd6
+	github.com/openshift/library-go v0.0.0-20260213153706-03f1709971c5
 	github.com/prometheus/client_golang v1.23.2
 	github.com/stretchr/testify v1.11.1
 	gopkg.in/yaml.v3 v3.0.1

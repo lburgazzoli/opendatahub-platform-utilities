@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T16 and T21 complete**
+Status: **implementation in progress; T00–T16 and T21–T23 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -65,7 +65,7 @@ buildable; the v2 runtime must not depend on it.
 ## Documentation-pack validation
 
 - [x] Master relocation and relative-link correction checked.
-- [x] All 23 task files exist and have objective, verification, and dependency
+- [x] All 24 task files exist and have objective, verification, and dependency
   sections.
 - [x] Local adversarial pass corrected the renderer-to-pipeline dependency in
   T13 and the task graph.
@@ -147,7 +147,9 @@ buildable; the v2 runtime must not depend on it.
   explicitly retained v1 compatibility surface.
 - [x] T22 added a reconciler-owned, factory-configurable condition manager
   without adding condition state to `pipeline.Request`.
-- [ ] T23–T24 implementation tasks executed.
+- [x] T23 added OpenShift API-server TLS profile helpers, startup fallback, and
+  a semantic-change watcher under `v2/pkg/kube/openshift/tls`.
+- [ ] T24 implementation task executed.
 - [ ] T17–T20 review, validation, and closeout tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused

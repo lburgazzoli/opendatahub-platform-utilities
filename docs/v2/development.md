@@ -144,6 +144,11 @@ constraints as the original implementation.
   instance's low-level accessor; the reconciler-owned condition manager handles
   framework outcome conditions and aggregation, with a factory option for
   controller-specific status policy.
+- OpenShift-only Kubernetes helpers belong under `v2/pkg/kube/openshift` and
+  must use the official OpenShift API/library types. Missing OpenShift APIs
+  must have explicit fallback semantics; transient discovery failures must not
+  be confused with an API that is definitively absent. Compare watched API
+  objects with Kubernetes semantic equality, not `reflect.DeepEqual`.
 
 ## Controller-integration learnings
 
