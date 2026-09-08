@@ -16,6 +16,8 @@ import (
 
 const modulePath = "github.com/opendatahub-io/odh-platform-utilities/v2"
 
+const legacyModulePath = "github.com/opendatahub-io/odh-platform-utilities"
+
 var (
 	errForbiddenV1Path    = errors.New("imports forbidden v1 path")
 	errKubeDependency     = errors.New("violates kube/resources dependency direction")
@@ -132,7 +134,9 @@ func validateImportPaths(relativePath string, imports []string) error {
 			return fmt.Errorf("%s: %w", relativePath, errPipelineAdapter)
 		}
 
-		if strings.Contains(importedPath, "/framework") || strings.HasSuffix(importedPath, "/pkg") {
+		if strings.HasPrefix(importedPath, legacyModulePath+"/framework") ||
+			importedPath == legacyModulePath+"/pkg" ||
+			strings.HasPrefix(importedPath, legacyModulePath+"/pkg/") {
 			return fmt.Errorf("%s: %w: %q", relativePath, errForbiddenV1Path, importedPath)
 		}
 	}
