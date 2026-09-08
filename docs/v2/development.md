@@ -121,7 +121,9 @@ constraints as the original implementation.
   reference the local v2 module through `go.work`, do not add a `replace`
   directive or a synthetic version requirement that makes local validation
   resolve the workspace module through the network. Validate these modules
-  from the workspace with `GOWORK` enabled.
+  from the workspace with `GOWORK` enabled. The same rule applies to isolated
+  integration-test modules and the local Kind test engine: keep those modules
+  in `go.work` and do not add local pseudo-version requirements.
 - A manager/client wrapper is justified only when it carries a real invariant,
   such as cache-coherent typed reads. Do not retain a wrapper that merely
   forwards controller-runtime methods. Example controllers should configure

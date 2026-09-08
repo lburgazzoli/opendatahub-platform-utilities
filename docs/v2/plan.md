@@ -116,7 +116,9 @@ buildable; the v2 runtime must not depend on it.
   reconciler lifecycle, status/finalizer handling, dynamic ownership, and
   GVK resource helpers in `798bada`.
 - [x] T13 renderer integration committed in `8e0705d`.
-- [x] T21 standalone controller examples committed in `db49f20`.
+- [x] T21 framework/pipeline standalone Helm controller example and isolated
+  Kind integration committed in `74ec1c6`; the plain-controller comparison is
+  deferred.
 - [ ] T14–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
