@@ -1,4 +1,5 @@
-// Package gvk contains distribution-neutral Kubernetes GVK constants.
+// Package gvk contains shared well-known Kubernetes GVK constants, including
+// the supported OpenShift and OLM integration types.
 package gvk
 
 import (
@@ -32,6 +33,14 @@ var (
 	ValidatingWebhookConfiguration = admissionregistrationv1.SchemeGroupVersion.WithKind("ValidatingWebhookConfiguration")
 	CustomResourceDefinition       = extensionsv1.SchemeGroupVersion.WithKind("CustomResourceDefinition")
 	Lease                          = coordinationv1.SchemeGroupVersion.WithKind("Lease")
+	ClusterVersion                 = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "ClusterVersion"}
+	Infrastructure                 = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Infrastructure"}
+	Authentication                 = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Authentication"}
+	Ingress                        = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Ingress"}
+	Node                           = corev1.SchemeGroupVersion.WithKind("Node")
+	OperatorCondition              = schema.GroupVersionKind{Group: "operators.coreos.com", Version: "v2", Kind: "OperatorCondition"}
+	Subscription                   = schema.GroupVersionKind{Group: "operators.coreos.com", Version: "v1alpha1", Kind: "Subscription"}
+	CatalogSource                  = schema.GroupVersionKind{Group: "operators.coreos.com", Version: "v1alpha1", Kind: "CatalogSource"}
 	MonitoringStack                = schema.GroupVersionKind{Group: "monitoring.rhobs", Version: "v1alpha1", Kind: "MonitoringStack"}
 	TempoMonolithic                = schema.GroupVersionKind{Group: "tempo.grafana.com", Version: "v1alpha1", Kind: "TempoMonolithic"}
 	TempoStack                     = schema.GroupVersionKind{Group: "tempo.grafana.com", Version: "v1alpha1", Kind: "TempoStack"}

@@ -149,6 +149,24 @@ constraints as the original implementation.
   must have explicit fallback semantics; transient discovery failures must not
   be confused with an API that is definitively absent. Compare watched API
   objects with Kubernetes semantic equality, not `reflect.DeepEqual`.
+- Cluster and distribution discovery is bootstrap-time behavior. Keep generic
+  Kubernetes distribution detection under `v2/pkg/kube/cluster`, OpenShift
+  facts under `v2/pkg/kube/openshift`, OLM access under `v2/pkg/kube/olm`, and
+  `api.PlatformProfile` composition in the distribution-specific caller. Do
+  not put a detector in the reconciler or rediscover the profile per reconcile.
+  Return the v2 `api.PlatformProfile`/`api.Distribution` value types rather than
+  reviving the removed root `ClusterInfo`, `Platform`, or `OperatorInfo` types.
+  Do not invent a namespace default for distribution lookups; callers must
+  provide the namespace when needed.
+- `api.PlatformProfile.Kind` identifies the product platform, while
+  `api.PlatformProfile.Distribution.Kind` identifies the Kubernetes
+  distribution. Generic discovery must not populate those dimensions in the
+  opposite order.
+- For discovery, `NoMatch` means the API kind is unavailable and may be a
+  documented absence result; `NotFound` means the API resolved but the
+  expected object is missing and must remain an error unless the helper's
+  contract explicitly says otherwise. Validate every required unstructured
+  field instead of silently treating malformed data as absent.
 
 ## Controller-integration learnings
 

@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T16 and T21–T23 complete**
+Status: **implementation in progress; T00–T16 and T21–T24 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -149,7 +149,9 @@ buildable; the v2 runtime must not depend on it.
   without adding condition state to `pipeline.Request`.
 - [x] T23 added OpenShift API-server TLS profile helpers, startup fallback, and
   a semantic-change watcher under `v2/pkg/kube/openshift/tls`.
-- [ ] T24 implementation task executed.
+- [x] T24 added explicit bootstrap cluster-distribution, OpenShift, OLM, and
+  CRD discovery primitives with shared GVK constants; product profile
+  composition remains caller-owned.
 - [ ] T17–T20 review, validation, and closeout tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
