@@ -140,6 +140,9 @@ constraints as the original implementation.
   when a predicate is intended to reject an event class. Group related
   predicates in cohesive files instead of creating one predicate file per
   function.
+- Semantic object predicates must ignore Kubernetes server metadata, including
+  `resourceVersion`, `managedFields`, and the last-applied-configuration
+  annotation; remove empty metadata only after those ignored fields are gone.
 - The reconciler must load one authoritative primary object, run only cleanup
   during deletion, add the finalizer before normal actions, and persist status
   only on the normal path. Successful cleanup emits a normal event; deadline
