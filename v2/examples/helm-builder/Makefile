@@ -73,6 +73,10 @@ lint:
 test:
 	go test -race -coverprofile=cover.out ./...
 
+.PHONY: test-integration
+test-integration:
+	$(MAKE) -C test/integration test
+
 .PHONY: tidy
 tidy:
 	go mod tidy

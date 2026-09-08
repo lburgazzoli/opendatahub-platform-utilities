@@ -7,14 +7,15 @@ import (
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
 	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/helm-builder/api/v1alpha1"
+	moduleconfig "github.com/opendatahub-io/odh-platform-utilities/v2/examples/helm-builder/pkg/config"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
-	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
-	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	corev1 "k8s.io/api/core/v1"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
+
+const controllerName = "helm-example"
 
 // HelmComponentReconciler renders and deploys the example Helm chart.
 //
@@ -22,13 +23,18 @@ import (
 // +kubebuilder:rbac:groups=examples.odh.io,resources=helmcomponents/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch;create;update;patch;delete
 type HelmComponentReconciler struct {
-	renderer *manifestengine.Engine
+	renderer      *manifestengine.Engine
+	configuration *moduleconfig.Config
 }
 
-func Setup(manager manager.Manager, chartPath string) error {
+func Setup(manager manager.Manager, configuration *moduleconfig.Config) error {
 	renderer, err := helm.NewEngine(
-		//nolint:exhaustruct_v5 // the example uses a chart path and release name.
-		helm.Source{Chart: chartPath, ReleaseName: "component"},
+		// the example uses a chart path and release name.
+		//nolint:exhaustruct_v5
+		helm.Source{
+			Chart:       configuration.ChartPath,
+			ReleaseName: "component",
+		},
 		helm.WithCache(),
 		helm.WithSourceAnnotations(true),
 	)
@@ -36,21 +42,20 @@ func Setup(manager manager.Manager, chartPath string) error {
 		return fmt.Errorf("create Helm renderer: %w", err)
 	}
 
-	reconcilerValue := &HelmComponentReconciler{
-		renderer: renderer,
+	r := &HelmComponentReconciler{
+		renderer:      renderer,
+		configuration: configuration,
 	}
-	ownedConfigMap := new(unstructured.Unstructured)
-	ownedConfigMap.SetGroupVersionKind(kubegvk.ConfigMap)
 
 	return reconciler.For(
 		manager,
 		v1alpha1.NewHelmComponent(),
-		reconciler.WithControllerName("helm-example"),
-		reconciler.WithFieldOwner("helm-example"),
+		reconciler.WithControllerName(controllerName),
+		reconciler.WithFieldOwner(controllerName),
 	).
-		Owns(ownedConfigMap).
-		WithActionFunc(reconcilerValue.render, pipeline.WithName("render")).
-		WithAction(deploy.New(deploy.WithFieldOwner("helm-example"))).
+		Owns(&corev1.ConfigMap{}).
+		WithActionFunc(r.render, pipeline.WithName("render")).
+		WithAction(deploy.New(deploy.WithFieldOwner(controllerName))).
 		Build()
 }
 
@@ -69,13 +74,14 @@ func (r *HelmComponentReconciler) render(
 	}
 
 	rendered, err := r.renderer.Render(ctx, manifestengine.WithValues(map[string]any{
-		"name": component.GetName(),
+		"name":      component.GetName(),
+		"namespace": r.configuration.Namespace,
 	}))
 	if err != nil {
 		return fmt.Errorf("render Helm chart: %w", err)
 	}
 
-	request.Resources.Set(resources.List(rendered))
+	request.Resources.Set(rendered)
 
 	return nil
 }

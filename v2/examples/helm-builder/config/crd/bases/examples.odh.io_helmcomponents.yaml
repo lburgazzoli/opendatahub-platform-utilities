@@ -40,8 +40,11 @@ spec:
           spec:
             properties:
               managementState:
-                description: ManagementState defines whether a component is actively
-                  managed.
+                default: Managed
+                description: ManagementState controls whether the component is reconciled.
+                enum:
+                - Managed
+                - Removed
                 type: string
             type: object
           status:

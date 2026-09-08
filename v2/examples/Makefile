@@ -21,6 +21,10 @@ lint:
 test:
 	$(MAKE) -C helm-builder test
 
+.PHONY: test-integration
+test-integration:
+	$(MAKE) -C helm-builder test-integration
+
 .PHONY: build
 build:
 	$(MAKE) -C helm-builder build

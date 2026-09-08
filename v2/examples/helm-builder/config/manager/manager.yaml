@@ -24,8 +24,11 @@ spec:
       - name: manager
         image: controller:latest
         imagePullPolicy: IfNotPresent
-        args:
-        - --chart=/charts/component
+        env:
+        - name: HELM_EXAMPLE_CHART
+          value: /charts/component
+        - name: HELM_EXAMPLE_NAMESPACE
+          value: default
         ports:
         - name: health
           containerPort: 8081
