@@ -2,6 +2,7 @@ package predicate
 
 import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/equality"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -84,13 +85,17 @@ func comparableObject(object client.Object, watchStatus bool) (map[string]any, e
 		unstructured.RemoveNestedField(converted.Object, "status")
 	}
 
+	// Ignore metadata that changes without changing the object's meaningful content.
 	unstructured.RemoveNestedField(converted.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(converted.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(converted.Object, "metadata", "annotations", corev1.LastAppliedConfigAnnotation)
+
 	metadata, found, err := unstructured.NestedMap(converted.Object, "metadata")
 	if err != nil {
 		return nil, err
 	}
 
+	// Treat empty and absent metadata as equivalent after the ignored fields are removed.
 	if found && len(metadata) == 0 {
 		unstructured.RemoveNestedField(converted.Object, "metadata")
 	}

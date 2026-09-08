@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	. "github.com/onsi/gomega"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -76,6 +77,12 @@ func TestHashChangedIgnoresServerMetadata(t *testing.T) {
 
 	oldObject := unstructuredObject(map[string]any{"spec": map[string]any{"enabled": true}})
 	newObject := oldObject.DeepCopy()
+	oldObject.SetAnnotations(map[string]string{
+		corev1.LastAppliedConfigAnnotation: "old",
+	})
+	newObject.SetAnnotations(map[string]string{
+		corev1.LastAppliedConfigAnnotation: "new",
+	})
 	newObject.SetResourceVersion("2")
 	newObject.SetManagedFields([]metav1.ManagedFieldsEntry{{Manager: "server"}})
 
