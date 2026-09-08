@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T13 and T21 complete**
+Status: **implementation in progress; T00–T14 and T21 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -126,7 +126,12 @@ buildable; the v2 runtime must not depend on it.
 - [x] T21 integration tests remain in the builder module, the chart lives under
   `config/chart` and is copied to `/opt/charts` in the image, and the example
   uses the compatible `renderer-helm@main` manifest-kit dependency set.
-- [ ] T14–T20 implementation and validation tasks executed.
+- [x] T14 moved the live-cluster harness from `framework/testing` to the
+  standalone `testkit/integration` module, migrated it to v2 APIs, and added
+  `testkit/go.work` for local v2, Kind, and integration-harness development.
+- [x] T14 validation passed: workspace module resolution, race-tested unit
+  tests, `go vet`, and root-configured golangci-lint for `testkit/integration`.
+- [ ] T15–T20 implementation and validation tasks executed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.

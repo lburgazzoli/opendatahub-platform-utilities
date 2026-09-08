@@ -1,4 +1,3 @@
-// framework/testing/integration/harness.go
 package integration
 
 import (
@@ -16,44 +15,41 @@ import (
 	apimachinerytypes "k8s.io/apimachinery/pkg/types"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/tools/clientcmd"
-	"sigs.k8s.io/controller-runtime/pkg/client"
+	crclient "sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/onsi/gomega"
 
-	"github.com/opendatahub-io/odh-platform-utilities/api/common"
-	"github.com/opendatahub-io/odh-platform-utilities/framework/api"
-	"github.com/opendatahub-io/odh-platform-utilities/framework/cluster/gvk"
-	"github.com/opendatahub-io/odh-platform-utilities/framework/controller/conditions"
-	"github.com/opendatahub-io/odh-platform-utilities/framework/resources"
+	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
+	v2client "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/client"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 )
 
-// scheme registers core Kubernetes types (including apps/v1 Deployment).
-// Used for typed client operations.
-var scheme = func() *runtime.Scheme {
+// newScheme registers core Kubernetes types, including apps/v1 Deployment.
+func newScheme() *runtime.Scheme {
 	s := runtime.NewScheme()
-	if err := clientgoscheme.AddToScheme(s); err != nil {
+	err := clientgoscheme.AddToScheme(s)
+	if err != nil {
 		panic(err)
 	}
-	return s
-}()
 
-// decoder is used to parse multi-document YAML manifests.
-var decoder = clientgoscheme.Codecs.UniversalDeserializer()
+	return s
+}
 
 // config holds validated integration test configuration.
 // Unexported to prevent mutation after construction; use functional options.
 type config struct {
-	kubeconfig           string
-	operatorManifest     resources.Source
-	dscName              string
-	dscSpec              *DSCSpec
 	moduleGVK            schema.GroupVersionKind
+	operatorManifest     Source
+	dscSpec              *DSCSpec
+	kubeconfig           string
+	dscName              string
 	moduleName           string
 	moduleNamespace      string
-	moduleAlreadyEnabled bool
 	deploymentName       string
 	timeout              time.Duration
 	pollInterval         time.Duration
+	moduleAlreadyEnabled bool
 }
 
 const (
@@ -78,15 +74,15 @@ func WithKubeconfig(path string) Option {
 // WithOperatorManifest SSA-applies this YAML before creating the DSC.
 // The source must be multi-document Kubernetes YAML (CRDs, RBAC,
 // Deployment, …) — the same shape as `kustomize build config/default`
-// from a checkout of opendatahub-operator. Accepts [resources.NewFileSource]
-// (absolute path) or [resources.NewURLSource] (HTTPS URL) for disposable
+// from a checkout of opendatahub-operator. Accepts [NewFileSource] (absolute
+// path) or [NewURLSource] (HTTPS URL) for disposable
 // clusters. Do not pass a channel name, quay image, GitHub tag, or PR URL
 // — operator releases do not attach an install.yaml.
 //
 // Omit this option on the PR-gate path: install the operator in CI (OLM),
 // then call [Run] without this option. Teardown does not uninstall the
 // operator, so this does not belong on a shared gate cluster.
-func WithOperatorManifest(src resources.Source) Option {
+func WithOperatorManifest(src Source) Option {
 	return func(c *config) { c.operatorManifest = src }
 }
 
@@ -136,101 +132,135 @@ func WithModuleAlreadyEnabled() Option {
 // validate fails fast on missing required fields before any cluster interaction.
 func (c *config) validate(t *testing.T) {
 	t.Helper()
+
 	if c.kubeconfig == "" {
 		t.Fatal("kubeconfig required: set KUBECONFIG env or use WithKubeconfig")
 	}
+
 	if c.deploymentName == "" {
 		t.Fatal("deploymentName is required (first argument to Run)")
 	}
+
+	c.validateModule(t)
+	c.validateTiming(t)
+}
+
+func (c *config) validateModule(t *testing.T) {
+	t.Helper()
+
 	if (c.moduleGVK.Kind != "") != (c.moduleName != "") {
 		t.Fatal("WithModuleCR: both GVK (with non-empty Kind) and name must be set together")
 	}
+
 	if c.moduleGVK.Kind != "" && c.dscSpec == nil && !c.moduleAlreadyEnabled {
-		t.Fatal("WithModuleCR: requires WithDSCSpec to enable the module via DSC, or WithModuleAlreadyEnabled if the module is pre-provisioned or not a DSC component")
+		t.Fatal("WithModuleCR: requires WithDSCSpec to enable the module via DSC, or " +
+			"WithModuleAlreadyEnabled if the module is pre-provisioned or not a DSC component")
 	}
+
 	if c.dscSpec != nil && len(c.dscSpec.components) == 0 {
 		t.Fatal("WithDSCSpec: DSCSpec has no components; add at least one with .Component()")
 	}
+}
+
+func (c *config) validateTiming(t *testing.T) {
+	t.Helper()
+
 	if c.timeout <= 0 {
 		t.Fatal("WithTimeout: timeout must be positive")
 	}
+
 	if c.pollInterval <= 0 {
 		t.Fatal("WithPollInterval: poll interval must be positive")
 	}
 }
 
 // buildClient constructs a controller-runtime client from cfg.Kubeconfig.
-func buildClient(t *testing.T, kubeconfig string) client.Client {
+func buildClient(t *testing.T, kubeconfig string) crclient.Client {
 	t.Helper()
+
 	restCfg, err := clientcmd.BuildConfigFromFlags("", kubeconfig)
 	if err != nil {
 		t.Fatalf("build kubeconfig: %v", err)
 	}
-	c, err := client.New(restCfg, client.Options{Scheme: scheme})
+
+	options := crclient.Options{}
+	options.Scheme = newScheme()
+	c, err := crclient.New(restCfg, options)
 	if err != nil {
 		t.Fatalf("build k8s client: %v", err)
 	}
-	return c
+
+	return v2client.New(c)
 }
 
 // applyManifests loads content from src and applies all YAML documents via server-side apply.
-func applyManifests(ctx context.Context, c client.Client, src resources.Source) error {
+func applyManifests(ctx context.Context, c crclient.Client, src Source) error {
 	raw, err := src.Load(ctx)
 	if err != nil {
 		return fmt.Errorf("load manifest: %w", err)
 	}
 
-	objs, err := resources.Decode(decoder, raw)
+	objs, err := resources.Decode(raw)
 	if err != nil {
 		return fmt.Errorf("decode manifests: %w", err)
 	}
 
 	for i := range objs {
-		if err := resources.Apply(ctx, c, &objs[i],
-			client.ForceOwnership, client.FieldOwner("integration-test")); err != nil {
+		err := resources.Apply(ctx, c, objs[i],
+			crclient.ForceOwnership, crclient.FieldOwner("integration-test"))
+		if err != nil {
 			return fmt.Errorf("apply %s %s: %w", objs[i].GetKind(), objs[i].GetName(), err)
 		}
 	}
+
 	return nil
 }
 
 // createDSC creates a DataScienceCluster CR with the given spec.
 // Returns an error (including AlreadyExists) if a DSC with that name already
 // exists — callers must not overwrite a pre-existing cluster-scoped resource.
-func createDSC(ctx context.Context, c client.Client, cfg *config) error {
-	obj := resources.GvkToUnstructured(gvk.DataScienceCluster)
+func createDSC(ctx context.Context, c crclient.Client, cfg *config) error {
+	obj := resources.GvkToUnstructured(dataScienceClusterGVK())
 	obj.SetName(cfg.dscName)
 	obj.Object["spec"] = cfg.dscSpec.ToMap()
-	if err := c.Create(ctx, obj); err != nil {
+	err := c.Create(ctx, obj)
+	if err != nil {
 		return fmt.Errorf("create DSC %s: %w", cfg.dscName, err)
 	}
+
 	return nil
 }
 
 // assertModuleReady asserts (via g) that the module CR has Ready=True and
 // ProvisioningSucceeded=True. Called inside gomega.Eventually.
-func assertModuleReady(ctx context.Context, g gomega.Gomega, c client.Client, cfg *config) {
-	u := &unstructured.Unstructured{}
+func assertModuleReady(ctx context.Context, g gomega.Gomega, c crclient.Client, cfg *config) {
+	u := new(unstructured.Unstructured)
 	u.SetGroupVersionKind(cfg.moduleGVK)
-	g.Expect(c.Get(ctx, client.ObjectKey{Name: cfg.moduleName}, u)).To(gomega.Succeed())
+	g.Expect(c.Get(ctx, crclient.ObjectKey{Namespace: "", Name: cfg.moduleName}, u)).To(gomega.Succeed())
 
 	statusRaw, _, err := unstructured.NestedMap(u.Object, "status")
 	g.Expect(err).NotTo(gomega.HaveOccurred(), "reading status from %s %s", cfg.moduleGVK.Kind, cfg.moduleName)
 
-	var status api.Status
+	var status platformapi.Status
 	g.Expect(runtime.DefaultUnstructuredConverter.FromUnstructured(statusRaw, &status)).To(gomega.Succeed())
 
-	g.Expect(conditions.IsStatusConditionTrue(&status, string(common.ConditionTypeReady))).To(gomega.BeTrue(),
+	statusConditions := statusConditionAccessor{conditions: status.Conditions}
+	g.Expect(condition.IsTrue(&statusConditions, string(platformapi.ConditionTypeReady))).To(
+		gomega.BeTrue(),
 		"module %s/%s: Ready condition is not True", cfg.moduleGVK.Kind, cfg.moduleName)
-	g.Expect(conditions.IsStatusConditionTrue(&status, string(common.ConditionTypeProvisioningSucceeded))).To(gomega.BeTrue(),
+	g.Expect(condition.IsTrue(&statusConditions, string(platformapi.ConditionTypeProvisioningSucceeded))).To(
+		gomega.BeTrue(),
 		"module %s/%s: ProvisioningSucceeded condition is not True", cfg.moduleGVK.Kind, cfg.moduleName)
 }
 
 // assertDeploymentReady asserts (via g) that cfg.deploymentName in cfg.moduleNamespace
 // has readyReplicas >= 1. Called inside gomega.Eventually.
-func assertDeploymentReady(ctx context.Context, g gomega.Gomega, c client.Client, cfg *config) {
-	dep := &appsv1.Deployment{}
-	g.Expect(c.Get(ctx, client.ObjectKey{Namespace: cfg.moduleNamespace, Name: cfg.deploymentName}, dep)).To(gomega.Succeed())
+func assertDeploymentReady(ctx context.Context, g gomega.Gomega, c crclient.Client, cfg *config) {
+	dep := new(appsv1.Deployment)
+	g.Expect(c.Get(ctx, crclient.ObjectKey{
+		Namespace: cfg.moduleNamespace,
+		Name:      cfg.deploymentName,
+	}, dep)).To(gomega.Succeed())
 	g.Expect(dep.Status.ReadyReplicas).To(gomega.BeNumerically(">=", 1),
 		"Deployment %s/%s: readyReplicas < 1", cfg.moduleNamespace, cfg.deploymentName)
 }
@@ -240,7 +270,7 @@ func assertDeploymentReady(ctx context.Context, g gomega.Gomega, c client.Client
 // ctx carries a cleanup-specific deadline. Errors are logged, not fatal.
 // dscCreated must be true for teardown to wait and delete — it is never
 // deleted if this harness did not create it.
-func teardown(ctx context.Context, t *testing.T, c client.Client, cfg *config, dscCreated bool) {
+func teardown(ctx context.Context, t *testing.T, c crclient.Client, cfg *config, dscCreated bool) {
 	t.Helper()
 
 	// Patch module CR to Removed if one was configured.
@@ -248,9 +278,10 @@ func teardown(ctx context.Context, t *testing.T, c client.Client, cfg *config, d
 		patch := &unstructured.Unstructured{}
 		patch.SetGroupVersionKind(cfg.moduleGVK)
 		patch.SetName(cfg.moduleName)
-		if err := c.Patch(ctx, patch,
-			client.RawPatch(apimachinerytypes.MergePatchType, []byte(`{"spec":{"managementState":"Removed"}}`)),
-		); err != nil && !k8serr.IsNotFound(err) {
+		err := c.Patch(ctx, patch,
+			crclient.RawPatch(apimachinerytypes.MergePatchType, []byte(`{"spec":{"managementState":"Removed"}}`)),
+		)
+		if err != nil && !k8serr.IsNotFound(err) {
 			t.Logf("teardown: patch module CR: %v", err)
 		}
 	}
@@ -262,8 +293,8 @@ func teardown(ctx context.Context, t *testing.T, c client.Client, cfg *config, d
 			t.Logf("teardown: waiting for Deployment %s/%s to scale down", cfg.moduleNamespace, cfg.deploymentName)
 			g := gomega.NewWithT(t)
 			g.Eventually(func(g gomega.Gomega) {
-				dep := &appsv1.Deployment{}
-				err := c.Get(ctx, client.ObjectKey{Namespace: cfg.moduleNamespace, Name: cfg.deploymentName}, dep)
+				dep := new(appsv1.Deployment)
+				err := c.Get(ctx, crclient.ObjectKey{Namespace: cfg.moduleNamespace, Name: cfg.deploymentName}, dep)
 				if k8serr.IsNotFound(err) {
 					return
 				}
@@ -273,10 +304,11 @@ func teardown(ctx context.Context, t *testing.T, c client.Client, cfg *config, d
 			}).WithContext(ctx).WithPolling(cfg.pollInterval).Should(gomega.Succeed())
 		}
 
-		obj := &unstructured.Unstructured{}
-		obj.SetGroupVersionKind(gvk.DataScienceCluster)
+		obj := new(unstructured.Unstructured)
+		obj.SetGroupVersionKind(dataScienceClusterGVK())
 		obj.SetName(cfg.dscName)
-		if err := c.Delete(ctx, obj); err != nil && !k8serr.IsNotFound(err) {
+		err := c.Delete(ctx, obj)
+		if err != nil && !k8serr.IsNotFound(err) {
 			t.Logf("teardown: delete DSC: %v", err)
 		}
 	}
@@ -293,14 +325,13 @@ func teardown(ctx context.Context, t *testing.T, c client.Client, cfg *config, d
 func Run(t *testing.T, deploymentName string, opts ...Option) {
 	t.Helper()
 
-	cfg := &config{
-		kubeconfig:      os.Getenv("KUBECONFIG"),
-		moduleNamespace: DefaultModuleNamespace,
-		deploymentName:  deploymentName,
-		dscName:         DefaultDSCName,
-		timeout:         DefaultTimeout,
-		pollInterval:    DefaultPollInterval,
-	}
+	cfg := new(config)
+	cfg.kubeconfig = os.Getenv("KUBECONFIG")
+	cfg.moduleNamespace = DefaultModuleNamespace
+	cfg.deploymentName = deploymentName
+	cfg.dscName = DefaultDSCName
+	cfg.timeout = DefaultTimeout
+	cfg.pollInterval = DefaultPollInterval
 	for _, opt := range opts {
 		opt(cfg)
 	}
@@ -315,44 +346,76 @@ func Run(t *testing.T, deploymentName string, opts ...Option) {
 		teardown(cleanupCtx, t, c, cfg, dscCreated)
 	})
 
-	if cfg.operatorManifest != nil {
-		t.Log("phase: applying operator manifests — SSA with ForceOwnership; use only on disposable clusters")
-		applyCtx, applyCancel := context.WithTimeout(context.Background(), cfg.timeout)
-		err := applyManifests(applyCtx, c, cfg.operatorManifest)
-		applyCancel()
-		if err != nil {
-			t.Fatalf("deploy operator: %v", err)
-		}
-	}
-
-	if cfg.dscSpec != nil {
-		t.Logf("phase: creating DataScienceCluster %s", cfg.dscName)
-		dscCtx, dscCancel := context.WithTimeout(context.Background(), cfg.timeout)
-		err := createDSC(dscCtx, c, cfg)
-		dscCancel()
-		if err != nil {
-			t.Fatalf("create DSC: %v", err)
-		}
-		dscCreated = true
-	}
+	applyOperatorManifest(t, c, cfg)
+	dscCreated = createConfiguredDSC(t, c, cfg)
 
 	g := gomega.NewWithT(t)
-
-	if cfg.moduleGVK.Kind != "" && cfg.moduleName != "" {
-		t.Logf("phase: waiting for %s/%s Ready=True + ProvisioningSucceeded=True", cfg.moduleGVK.Kind, cfg.moduleName)
-		moduleCtx, moduleCancel := context.WithTimeout(context.Background(), cfg.timeout)
-		defer moduleCancel()
-		g.Eventually(func(g gomega.Gomega) {
-			assertModuleReady(moduleCtx, g, c, cfg)
-		}).WithContext(moduleCtx).WithPolling(cfg.pollInterval).Should(gomega.Succeed())
-	}
-
-	t.Logf("phase: waiting for Deployment %s/%s readyReplicas >= 1", cfg.moduleNamespace, cfg.deploymentName)
-	depCtx, depCancel := context.WithTimeout(context.Background(), cfg.timeout)
-	defer depCancel()
-	g.Eventually(func(g gomega.Gomega) {
-		assertDeploymentReady(depCtx, g, c, cfg)
-	}).WithContext(depCtx).WithPolling(cfg.pollInterval).Should(gomega.Succeed())
+	waitForModule(t, g, c, cfg)
+	waitForDeployment(t, g, c, cfg)
 
 	t.Log("phase: all assertions passed")
+}
+
+func applyOperatorManifest(t *testing.T, c crclient.Client, cfg *config) {
+	t.Helper()
+
+	if cfg.operatorManifest == nil {
+		return
+	}
+
+	t.Log("phase: applying operator manifests — SSA with ForceOwnership; use only on disposable clusters")
+	ctx, cancel := context.WithTimeout(t.Context(), cfg.timeout)
+	defer cancel()
+
+	err := applyManifests(ctx, c, cfg.operatorManifest)
+	if err != nil {
+		t.Fatalf("deploy operator: %v", err)
+	}
+}
+
+func createConfiguredDSC(t *testing.T, c crclient.Client, cfg *config) bool {
+	t.Helper()
+
+	if cfg.dscSpec == nil {
+		return false
+	}
+
+	t.Logf("phase: creating DataScienceCluster %s", cfg.dscName)
+	ctx, cancel := context.WithTimeout(t.Context(), cfg.timeout)
+	defer cancel()
+
+	err := createDSC(ctx, c, cfg)
+	if err != nil {
+		t.Fatalf("create DSC: %v", err)
+	}
+
+	return true
+}
+
+func waitForModule(t *testing.T, g gomega.Gomega, c crclient.Client, cfg *config) {
+	t.Helper()
+
+	if cfg.moduleGVK.Kind == "" || cfg.moduleName == "" {
+		return
+	}
+
+	t.Logf("phase: waiting for %s/%s Ready=True + ProvisioningSucceeded=True", cfg.moduleGVK.Kind, cfg.moduleName)
+	ctx, cancel := context.WithTimeout(t.Context(), cfg.timeout)
+	defer cancel()
+
+	g.Eventually(func(g gomega.Gomega) {
+		assertModuleReady(ctx, g, c, cfg)
+	}).WithContext(ctx).WithPolling(cfg.pollInterval).Should(gomega.Succeed())
+}
+
+func waitForDeployment(t *testing.T, g gomega.Gomega, c crclient.Client, cfg *config) {
+	t.Helper()
+
+	t.Logf("phase: waiting for Deployment %s/%s readyReplicas >= 1", cfg.moduleNamespace, cfg.deploymentName)
+	ctx, cancel := context.WithTimeout(t.Context(), cfg.timeout)
+	defer cancel()
+
+	g.Eventually(func(g gomega.Gomega) {
+		assertDeploymentReady(ctx, g, c, cfg)
+	}).WithContext(ctx).WithPolling(cfg.pollInterval).Should(gomega.Succeed())
 }

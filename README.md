@@ -30,13 +30,15 @@ for full API documentation.
 
 ## Repository Structure
 
-This repository contains three Go modules:
+This repository contains five Go modules:
 
 | Module | Path | Description |
 |--------|------|-------------|
 | `github.com/opendatahub-io/odh-platform-utilities` | `/` (root) | Low-level, dependency-light utilities for platform contract types, metadata, cluster detection, manifest rendering, and resource helpers |
-| `github.com/opendatahub-io/odh-platform-utilities/framework` | `framework/` | Opinionated controller framework providing a full reconciler, action pipeline, deploy/GC lifecycle, condition management, and test helpers |
-| `github.com/opendatahub-io/odh-platform-utilities/framework/testing` | `framework/testing/` | Live-cluster PR gate (`integration.Run`) for module repos |
+| `github.com/opendatahub-io/odh-platform-utilities/framework` | `framework/` | Opinionated controller framework providing a full reconciler, action pipeline, deploy/GC lifecycle, and condition management |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/kind` | `testkit/kind/` | Isolated Kind Go-library engine for disposable integration clusters |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/integration` | `testkit/integration/` | Live-cluster PR gate (`integration.Run`) for module repos |
+| `github.com/opendatahub-io/odh-platform-utilities/flakiness` | `flakiness/` | CI artifact, runtime, quarantine, and Jira tooling |
 
 The root module is suitable for any Go project that needs platform types or
 standalone helpers. The `framework/` module is for teams building full
@@ -113,7 +115,7 @@ Module controllers that participate in the ODH platform must implement the
 for the full contract specification and a copy-pasteable implementation example.
 
 To add a live-cluster PR gate in a module repo, import
-`github.com/opendatahub-io/odh-platform-utilities/framework/testing/integration`
+`github.com/opendatahub-io/odh-platform-utilities/testkit/integration`
 and follow [docs/integration-testing.md](./docs/integration-testing.md).
 
 ## Metadata Conventions

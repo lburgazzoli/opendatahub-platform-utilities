@@ -30,7 +30,8 @@ The repository currently contains these modules:
 | --- | --- | --- |
 | `github.com/opendatahub-io/odh-platform-utilities` | `/` | Platform types and low-level Kubernetes/controller utilities |
 | `github.com/opendatahub-io/odh-platform-utilities/framework` | `framework/` | Generic reconciler and action pipeline |
-| `github.com/opendatahub-io/odh-platform-utilities/framework/testing` | `framework/testing/` | Live-cluster integration-test harness |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/kind` | `testkit/kind/` | Isolated Kind Go-library test engine |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/integration` | `testkit/integration/` | Live-cluster integration-test harness |
 | `github.com/opendatahub-io/odh-platform-utilities/flakiness` | `flakiness/` | Test flakiness, runtime, quarantine, and Jira tooling |
 
 `examples/` contains additional standalone example modules. The root Makefile
@@ -293,7 +294,7 @@ RBAC permissions.
 
 ## Integration test harness
 
-`framework/testing/integration` is a live-cluster PR-gate helper, not an OLM
+`testkit/integration` is a live-cluster PR-gate helper, not an OLM
 installer. The expected environment already contains a ready ODH Operator,
 DSCInitialization, and the target namespace.
 

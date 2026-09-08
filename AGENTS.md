@@ -37,16 +37,19 @@ For architectural context see:
 
 ## Repository Structure
 
-This repository contains **three Go modules**:
+This repository contains several Go modules:
 
 | Module | Path | Purpose |
 |--------|------|---------|
 | `github.com/opendatahub-io/odh-platform-utilities` | `/` (root) | Low-level, dependency-light utilities |
 | `github.com/opendatahub-io/odh-platform-utilities/framework` | `framework/` | Opinionated controller framework |
-| `github.com/opendatahub-io/odh-platform-utilities/framework/testing` | `framework/testing/` | Live-cluster integration PR gate |
+| `github.com/opendatahub-io/odh-platform-utilities/v2` | `v2/` | V2 controller framework and platform utilities |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/kind` | `testkit/kind/` | Isolated Kind Go-library engine |
+| `github.com/opendatahub-io/odh-platform-utilities/testkit/integration` | `testkit/integration/` | Live-cluster integration PR gate |
+| `github.com/opendatahub-io/odh-platform-utilities/flakiness` | `flakiness/` | CI artifact and flakiness tooling |
 
-The `framework/` and `framework/testing/` modules depend on the root module
-(via `replace` for local development).
+The legacy `framework/` module depends on the root module. V2 and testkit
+modules use checked-in `go.work` files for local development.
 
 ### Root Module
 
@@ -204,9 +207,10 @@ framework/
     test/
       matchers/                 Gomega matchers and jq-based assertions
                                 for integration tests.
-  testing/                      Nested Go module (framework/testing).
-    integration/                Live-cluster PR gate ([Run]). See
-                                docs/integration-testing.md.
+testkit/
+  kind/                          Isolated Kind Go-library engine.
+  integration/                   Live-cluster PR gate ([Run]). See
+                                 docs/integration-testing.md.
 ```
 
 #### Key Framework Concepts

@@ -117,13 +117,16 @@ constraints as the original implementation.
   one compatible upstream set. Do not mix renderer releases with a different
   `Process` signature or package utility API; verify the complete set with a
   direct composed-renderer test.
-- Keep standalone in-repository consumer modules simple and workspace-driven:
-  reference the local v2 module through `go.work`, do not add a `replace`
-  directive or a synthetic version requirement that makes local validation
-  resolve the workspace module through the network. Validate these modules
-  from the workspace with `GOWORK` enabled. Integration tests belong to their
-  consumer module; only genuinely reusable test infrastructure, such as the
-  isolated Kind engine, should be a separate workspace module.
+- Keep standalone in-repository consumer and testkit modules simple and
+  workspace-driven: reference local modules through `go.work`, do not add a
+  `replace` directive or a synthetic version requirement that makes local
+  validation resolve a workspace module through the network. Validate these
+  modules from their workspace with `GOWORK` enabled. Integration tests belong
+  to their consumer module; genuinely reusable infrastructure such as the
+  isolated Kind engine and the live-cluster test harness belongs under
+  `testkit/` and may be a separate workspace module. An unreleased local
+  workspace module does not need a synthetic `require`; add its released
+  semantic version when publishing the consumer module.
 - A manager/client wrapper is justified only when it carries a real invariant,
   such as cache-coherent typed reads. Do not retain a wrapper that merely
   forwards controller-runtime methods. Example controllers should configure

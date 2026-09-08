@@ -65,9 +65,10 @@ verify-generate: generate ## Verify generated files are up to date.
 ##@ All Modules
 
 .PHONY: all-modules
-all-modules: all ## Run all checks across root, framework, framework/testing, and flakiness modules.
+all-modules: all ## Run all checks across root, framework, testkit, and flakiness modules.
 	$(MAKE) -C framework all
-	$(MAKE) -C framework/testing all
+	$(MAKE) -C testkit/kind all
+	$(MAKE) -C testkit/integration all
 	$(MAKE) -C flakiness all
 
 .PHONY: generate-all
@@ -77,25 +78,29 @@ generate-all: generate ## Regenerate DeepCopy methods across all modules.
 .PHONY: test-all
 test-all: test ## Run tests across all modules.
 	$(MAKE) -C framework test
-	$(MAKE) -C framework/testing test
+	$(MAKE) -C testkit/kind test
+	$(MAKE) -C testkit/integration test
 	$(MAKE) -C flakiness test
 
 .PHONY: lint-all
 lint-all: lint ## Run golangci-lint across all modules.
 	$(MAKE) -C framework lint
-	$(MAKE) -C framework/testing lint
+	$(MAKE) -C testkit/kind lint
+	$(MAKE) -C testkit/integration lint
 	$(MAKE) -C flakiness lint
 
 .PHONY: lint-fix-all
 lint-fix-all: lint-fix ## Run golangci-lint with --fix across all modules.
 	$(MAKE) -C framework lint-fix
-	$(MAKE) -C framework/testing lint-fix
+	$(MAKE) -C testkit/kind lint-fix
+	$(MAKE) -C testkit/integration lint-fix
 	$(MAKE) -C flakiness lint-fix
 
 .PHONY: tidy-all
 tidy-all: tidy ## Run go mod tidy across all modules.
 	$(MAKE) -C framework tidy
-	$(MAKE) -C framework/testing tidy
+	$(MAKE) -C testkit/kind tidy
+	$(MAKE) -C testkit/integration tidy
 	$(MAKE) -C flakiness tidy
 
 .PHONY: verify-fmt-all
@@ -106,7 +111,8 @@ verify-fmt-all: verify-fmt ## Verify code formatting across all modules.
 .PHONY: verify-tidy-all
 verify-tidy-all: verify-tidy ## Verify go.mod/go.sum are tidy across all modules.
 	$(MAKE) -C framework verify-tidy
-	$(MAKE) -C framework/testing verify-tidy
+	$(MAKE) -C testkit/kind verify-tidy
+	$(MAKE) -C testkit/integration verify-tidy
 	$(MAKE) -C flakiness verify-tidy
 
 .PHONY: verify-generate-all

@@ -2,7 +2,8 @@
 
 ## Objective
 
-Migrate examples and the integration-test consumer to the v2 API.
+Migrate examples and the integration-test consumer to the v2 API, moving the
+reusable integration harness from `framework/testing` to `testkit/integration`.
 
 ## Non-negotiable rules
 
@@ -10,15 +11,18 @@ Read and follow [`../development.md`](../development.md) before starting.
 
 ## Instructions
 
+- Move `framework/testing` to `testkit/integration` and update its module path,
+  imports, and documentation to consume v2 APIs.
+- Add a `testkit/go.work` covering `v2`, `testkit/kind`, and
+  `testkit/integration`; do not use local `replace` directives.
 - Update examples and supported documentation to `/v2` imports.
-- Rewrite `framework/testing` only as needed to consume v2; do not preserve its
-  old public API or module shape as a v2 compatibility target.
 - Keep `flakiness/` outside the migration.
 
 ## Verification
 
-Build and test migrated examples and the testing consumer. Search for stale v1
-imports, old request fields, and removed package paths.
+Build and test the migrated testkit module and examples from their workspaces.
+Search for stale v1 imports, old request fields, the removed
+`framework/testing` path, and local `replace` directives.
 
 ## Dependencies
 

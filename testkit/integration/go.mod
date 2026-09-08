@@ -1,17 +1,17 @@
-module github.com/opendatahub-io/odh-platform-utilities/framework/testing
+module github.com/opendatahub-io/odh-platform-utilities/testkit/integration
 
-go 1.25.12
+go 1.26.8
 
 require (
 	github.com/onsi/gomega v1.39.1
-	github.com/opendatahub-io/odh-platform-utilities v0.0.0-00010101000000-000000000000
-	github.com/opendatahub-io/odh-platform-utilities/framework v0.0.0-00010101000000-000000000000
-	github.com/stretchr/testify v1.11.1
 	k8s.io/api v0.35.4
 	k8s.io/apimachinery v0.35.4
 	k8s.io/client-go v0.35.4
 	sigs.k8s.io/controller-runtime v0.23.3
 )
+
+// The unreleased v2 module is supplied as a workspace main module by
+// ../go.work. Add its released version here when this module is published.
 
 require (
 	github.com/blang/semver/v4 v4.0.0 // indirect
@@ -69,7 +69,3 @@ require (
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.0 // indirect
 	sigs.k8s.io/yaml v1.6.0 // indirect
 )
-
-replace github.com/opendatahub-io/odh-platform-utilities/framework => ../
-
-replace github.com/opendatahub-io/odh-platform-utilities => ../../

@@ -10,7 +10,7 @@ must be rechecked before removing a public v1 symbol.
 | --- | --- | --- |
 | Root module | Platform contract and low-level Kubernetes utilities | Merge into the `/v2` module |
 | `framework/` | Reconciler, action pipeline, rendering/action integrations, and framework helpers | Merge into `/v2`, reshaping packages under `api` and `pkg` |
-| `framework/testing/` | Live-cluster integration harness | Rewrite as a migration consumer; current API is not retained |
+| `testkit/integration/` (migrated from `framework/testing/`) | Live-cluster integration harness | Keep outside the public v2 runtime; consume v2 APIs |
 | `flakiness/` | CI artifact, runtime, quarantine, and Jira tooling | Remain a separate module and outside the v2 redesign |
 
 The current root, framework, and framework-testing modules use Go 1.25.x.
@@ -51,9 +51,9 @@ V2 must establish one Go 1.26 module and remove the framework module boundary.
 5. `pkg/status` uses conflict-retry update semantics while v2 specifies SSA
    status application. This is a deliberate behavior change requiring focused
    migration tests.
-6. Existing integration documentation points at `framework/testing`; the v2
-   harness may be rewritten and must not become a hidden dependency of runtime
-   packages.
+6. Existing integration documentation pointed at `framework/testing`; the
+   harness must remain outside the public v2 runtime and must not become a
+   hidden runtime dependency.
 7. The current repository contains stale v1-oriented documentation references.
    They should be updated only by the consumer-migration task, not during
    foundational package work.
@@ -66,7 +66,9 @@ V2 must establish one Go 1.26 module and remove the framework module boundary.
   implementations are consolidated.
 - T03–T07 can proceed in parallel after the foundation, with package ownership
   following the v2 layout.
-- T14 must migrate examples and test consumers after the public APIs stabilize.
+- T14 must move the integration harness to `testkit/integration`, migrate it to
+  v2 APIs, and migrate examples and other test consumers after the public APIs
+  stabilize.
 - T16 must not remove v1 implementations until retained behavior and known
   consumer imports have been audited.
 
