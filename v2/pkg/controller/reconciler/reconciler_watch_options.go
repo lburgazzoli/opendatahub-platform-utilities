@@ -7,6 +7,7 @@ import (
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/cluster"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	apihelpers "k8s.io/apiextensions-apiserver/pkg/apihelpers"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
@@ -83,6 +84,18 @@ func When(guard pipeline.Guard) WatchOption {
 	return Dynamic(func(ctx context.Context, request *pipeline.Request) (bool, error) {
 		return guard.Evaluate(ctx, request)
 	})
+}
+
+// HasAPI enables a watch when the requested API is available through the
+// reconciliation client's REST mapper.
+func HasAPI(watchedGVK schema.GroupVersionKind) DynamicPredicate {
+	return func(_ context.Context, request *pipeline.Request) (bool, error) {
+		if request == nil || request.Client == nil {
+			return false, nil
+		}
+
+		return cluster.HasAPI(request.Client, watchedGVK)
+	}
 }
 
 // CrdExists enables a watch when the requested API is available through the

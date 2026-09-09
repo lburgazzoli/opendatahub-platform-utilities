@@ -15,7 +15,6 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
 	kubeGVK "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	corev1 "k8s.io/api/core/v1"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -58,33 +57,11 @@ func Setup(manager manager.Manager, configuration *moduleconfig.Config) error {
 		reconciler.WithControllerName(controllerName),
 	).
 		Owns(&corev1.ConfigMap{}).
-		WatchesGVK(kubeGVK.Route, reconciler.When(routeAPIAvailable())).
+		WatchesGVK(kubeGVK.Route, reconciler.Dynamic(reconciler.HasAPI(kubeGVK.Route))).
 		WithActionFunc(r.render, pipeline.WithName("render")).
 		WithAction(deploy.New()).
 		Build()
 }
-
-func routeAPIAvailable() pipeline.Guard {
-	return pipeline.NewGuard("route-api-available", func(_ context.Context, request *pipeline.Request) (bool, error) {
-		if request == nil || request.Client == nil {
-			return false, nil
-		}
-
-		_, err := request.Client.RESTMapper().RESTMapping(
-			kubeGVK.Route.GroupKind(),
-			kubeGVK.Route.Version,
-		)
-		switch {
-		case err == nil:
-			return true, nil
-		case meta.IsNoMatchError(err):
-			return false, nil
-		default:
-			return false, fmt.Errorf("check Route API availability: %w", err)
-		}
-	})
-}
-
 func (r *HelmComponentReconciler) render(
 	ctx context.Context,
 	request *pipeline.Request,

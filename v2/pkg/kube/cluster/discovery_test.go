@@ -96,6 +96,29 @@ func TestHasCRD(t *testing.T) {
 	g.Expect(exists).To(BeFalse())
 }
 
+func TestHasAPI(t *testing.T) {
+	t.Parallel()
+
+	widgetGVK := schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Widget"}
+	mapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{widgetGVK.GroupVersion()})
+	mapper.Add(widgetGVK, meta.RESTScopeNamespace)
+	reader := fake.NewClientBuilder().WithRESTMapper(mapper).Build()
+
+	hasAPI, err := cluster.HasAPI(reader, widgetGVK)
+
+	g := NewWithT(t)
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(hasAPI).To(BeTrue())
+
+	hasAPI, err = cluster.HasAPI(reader, schema.GroupVersionKind{
+		Group:   "missing.example.io",
+		Version: "v1",
+		Kind:    "Missing",
+	})
+	g.Expect(err).NotTo(HaveOccurred())
+	g.Expect(hasAPI).To(BeFalse())
+}
+
 func TestHasCRDRejectsMalformedConditions(t *testing.T) {
 	t.Parallel()
 

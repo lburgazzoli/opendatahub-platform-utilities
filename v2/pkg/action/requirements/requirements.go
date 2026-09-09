@@ -8,12 +8,11 @@ import (
 	"slices"
 	"strings"
 
-	apierrors "k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/cluster"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 )
 
@@ -186,16 +185,13 @@ func availableAPIs(
 ) (map[schema.GroupVersionKind]struct{}, error) {
 	available := make(map[schema.GroupVersionKind]struct{}, len(gvks))
 	for _, gvk := range gvks {
-		_, err := cli.RESTMapper().RESTMapping(gvk.GroupKind(), gvk.Version)
-		switch {
-		case err == nil:
-			available[gvk] = struct{}{}
-		case apierrors.IsNotFound(err):
-			continue
-		case meta.IsNoMatchError(err):
-			continue
-		default:
+		hasAPI, err := cluster.HasAPI(cli, gvk)
+		if err != nil {
 			return nil, fmt.Errorf("resolve %s: %w", gvk, err)
+		}
+
+		if hasAPI {
+			available[gvk] = struct{}{}
 		}
 	}
 
