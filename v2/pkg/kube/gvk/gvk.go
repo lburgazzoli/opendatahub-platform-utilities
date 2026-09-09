@@ -37,6 +37,7 @@ var (
 	Infrastructure                 = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Infrastructure"}
 	Authentication                 = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Authentication"}
 	Ingress                        = schema.GroupVersionKind{Group: "config.openshift.io", Version: "v1", Kind: "Ingress"}
+	Route                          = schema.GroupVersionKind{Group: "route.openshift.io", Version: "v1", Kind: "Route"}
 	Node                           = corev1.SchemeGroupVersion.WithKind("Node")
 	OperatorCondition              = schema.GroupVersionKind{Group: "operators.coreos.com", Version: "v2", Kind: "OperatorCondition"}
 	Subscription                   = schema.GroupVersionKind{Group: "operators.coreos.com", Version: "v1alpha1", Kind: "Subscription"}
