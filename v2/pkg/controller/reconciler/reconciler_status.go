@@ -61,19 +61,27 @@ func markProvisioning(
 	outcome action.ActionError,
 	generation int64,
 ) {
-	markOptions := []condition.MarkOption{condition.WithObservedGeneration(generation)}
-
 	switch {
 	case outcome.Err() == nil:
-		condition.MarkTrue(accessor, string(api.ConditionTypeProvisioningSucceeded), markOptions...)
-	case outcome.Type() == action.ErrorTypeAdvisory:
-		markOptions = append(markOptions,
-			condition.WithReason(advisoryReason),
-			condition.WithMessage("%s", outcome.Error()),
+		condition.MarkTrue(
+			accessor,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
 		)
-		condition.MarkTrue(accessor, string(api.ConditionTypeProvisioningSucceeded), markOptions...)
+	case outcome.Type() == action.ErrorTypeAdvisory:
+		condition.MarkTrue(
+			accessor,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
+			condition.WithReason(advisoryReason),
+			condition.WithMessage(outcome.Error()),
+		)
 	default:
-		markOptions = append(markOptions, condition.WithError(outcome))
-		condition.MarkFalse(accessor, string(api.ConditionTypeProvisioningSucceeded), markOptions...)
+		condition.MarkFalse(
+			accessor,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
+			condition.WithError(outcome),
+		)
 	}
 }
