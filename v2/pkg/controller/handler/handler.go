@@ -64,6 +64,19 @@ func AnnotationToName(key string) crhandler.EventHandler {
 	})
 }
 
+// AnnotationToNameClusterScoped enqueues an annotated primary with an empty
+// namespace. It matches singleton controllers whose primary resource is
+// cluster-scoped while the watched resource may be namespaced.
+func AnnotationToNameClusterScoped(key string) crhandler.EventHandler {
+	return Fn(func(_ context.Context, object client.Object) []reconcile.Request {
+		if object == nil {
+			return nil
+		}
+
+		return requestForValue(object.GetAnnotations(), key, "")
+	})
+}
+
 // EnqueueByOwnerAnnotation resolves the canonical platform owner annotations.
 func EnqueueByOwnerAnnotation() crhandler.MapFunc {
 	return func(_ context.Context, object client.Object) []reconcile.Request {

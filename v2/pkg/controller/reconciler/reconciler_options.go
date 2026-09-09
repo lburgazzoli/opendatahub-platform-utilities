@@ -8,6 +8,7 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	crpredicate "sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
@@ -34,14 +35,16 @@ func defaultOptions() Options {
 //
 //nolint:govet // The exported option layout follows its documented policy groups.
 type Options struct {
-	ControllerName       string
-	FieldOwner           string
-	DefaultRequeueAfter  time.Duration
-	DynamicOwnership     bool
-	CleanupTimeout       *time.Duration
-	PlatformProfile      *api.PlatformProfile
-	ExcludeFromOwnership []schema.GroupVersionKind
-	ConditionManager     ConditionManagerFactory
+	ControllerName                    string
+	FieldOwner                        string
+	DefaultRequeueAfter               time.Duration
+	DynamicOwnership                  bool
+	CleanupTimeout                    *time.Duration
+	PlatformProfile                   *api.PlatformProfile
+	ExcludeFromOwnership              []schema.GroupVersionKind
+	DynamicOwnershipDefaultPredicates []crpredicate.Predicate
+	DynamicOwnershipGVKPredicates     map[schema.GroupVersionKind][]crpredicate.Predicate
+	ConditionManager                  ConditionManagerFactory
 }
 
 // ApplyTo applies a complete option value to target while preserving absent
@@ -57,6 +60,8 @@ func (o Options) ApplyTo(target *Options) {
 	target.DefaultRequeueAfter = o.DefaultRequeueAfter
 	target.DynamicOwnership = o.DynamicOwnership
 	target.ExcludeFromOwnership = slices.Clone(o.ExcludeFromOwnership)
+	target.DynamicOwnershipDefaultPredicates = slices.Clone(o.DynamicOwnershipDefaultPredicates)
+	target.DynamicOwnershipGVKPredicates = clonePredicateMap(o.DynamicOwnershipGVKPredicates)
 	target.ConditionManager = o.ConditionManager
 
 	if o.PlatformProfile == nil {
@@ -122,6 +127,39 @@ func WithExcludedOwnershipTypes(types ...schema.GroupVersionKind) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.ExcludeFromOwnership = append(options.ExcludeFromOwnership, types...)
 	})
+}
+
+// WithDynamicOwnershipDefaultPredicates configures the fallback predicates for
+// framework-managed owned watches.
+func WithDynamicOwnershipDefaultPredicates(values ...crpredicate.Predicate) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.DynamicOwnershipDefaultPredicates = append(options.DynamicOwnershipDefaultPredicates, values...)
+	})
+}
+
+// WithDynamicOwnershipGVKPredicates configures predicates for exact owned
+// resource GVKs. These take precedence over all default policies.
+func WithDynamicOwnershipGVKPredicates(
+	values map[schema.GroupVersionKind][]crpredicate.Predicate,
+) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.DynamicOwnershipGVKPredicates = clonePredicateMap(values)
+	})
+}
+
+func clonePredicateMap(
+	values map[schema.GroupVersionKind][]crpredicate.Predicate,
+) map[schema.GroupVersionKind][]crpredicate.Predicate {
+	if values == nil {
+		return nil
+	}
+
+	cloned := make(map[schema.GroupVersionKind][]crpredicate.Predicate, len(values))
+	for gvk, predicates := range values {
+		cloned[gvk] = slices.Clone(predicates)
+	}
+
+	return cloned
 }
 
 // WithConditionManagerFactory configures reconciler-owned condition status

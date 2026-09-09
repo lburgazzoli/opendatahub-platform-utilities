@@ -3,12 +3,16 @@ package reconciler
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
+	platformhandler "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/handler"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
+	platformpredicate "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/predicate"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	platformannotations "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/validation"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,10 +26,9 @@ import (
 )
 
 type watchRegistration struct {
-	object       client.Object
-	eventHandler handler.EventHandler
-	ownerOnly    bool
-	predicates   []predicate.Predicate
+	object    client.Object
+	options   WatchOptions
+	ownerOnly bool
 }
 
 // Builder configures a controller topology and its action pipeline.
@@ -58,6 +61,11 @@ func For(
 		prototype: prototype,
 		options:   configured,
 		pipeline:  pipeline.New(),
+		predicates: []predicate.Predicate{predicate.Or(
+			predicate.GenerationChangedPredicate{}, //nolint:exhaustruct_v5 // zero value retains controller-runtime defaults.
+			predicate.LabelChangedPredicate{},      //nolint:exhaustruct_v5 // zero value retains controller-runtime defaults.
+			predicate.AnnotationChangedPredicate{}, //nolint:exhaustruct_v5 // zero value retains controller-runtime defaults.
+		)},
 	}
 }
 
@@ -145,26 +153,26 @@ func (b *Builder) WithCleanupTimeout(timeout time.Duration) *Builder {
 // Watches registers a secondary resource watch.
 func (b *Builder) Watches(
 	object client.Object,
-	eventHandler handler.EventHandler,
-	predicates ...predicate.Predicate,
+	options ...WatchOption,
 ) *Builder {
-	b.watch = append(b.watch, watchRegistration{
-		object:       object,
-		eventHandler: eventHandler,
-		predicates:   append([]predicate.Predicate(nil), predicates...),
-	})
+	b.watch = append(b.watch, b.newWatchRegistration(object, false, options...))
 	return b
 }
 
 // Owns registers a controller-owner watch for a secondary resource.
-func (b *Builder) Owns(object client.Object, predicates ...predicate.Predicate) *Builder {
-	b.watch = append(b.watch, watchRegistration{
-		object:     object,
-		ownerOnly:  true,
-		predicates: append([]predicate.Predicate(nil), predicates...),
-	})
-
+func (b *Builder) Owns(object client.Object, options ...WatchOption) *Builder {
+	b.watch = append(b.watch, b.newWatchRegistration(object, true, options...))
 	return b
+}
+
+// WatchesGVK registers a secondary resource watch from its complete GVK.
+func (b *Builder) WatchesGVK(gvk schema.GroupVersionKind, options ...WatchOption) *Builder {
+	return b.Watches(resources.GvkToUnstructured(gvk), options...)
+}
+
+// OwnsGVK registers a controller-owner watch from its complete GVK.
+func (b *Builder) OwnsGVK(gvk schema.GroupVersionKind, options ...WatchOption) *Builder {
+	return b.Owns(resources.GvkToUnstructured(gvk), options...)
 }
 
 // WatchesRawSource registers a controller-runtime raw source.
@@ -186,12 +194,13 @@ func (b *Builder) Build() error {
 		return err
 	}
 
-	r, err := b.newReconciler(instance)
+	hasDynamicWatches := b.hasDynamicWatches()
+	r, err := b.newReconciler(instance, b.options.DynamicOwnership || hasDynamicWatches)
 	if err != nil {
 		return err
 	}
 
-	if !b.options.DynamicOwnership {
+	if !b.options.DynamicOwnership && !hasDynamicWatches {
 		_, err = b.registerController(r, instance)
 		return err
 	}
@@ -217,17 +226,27 @@ func (b *Builder) Build() error {
 		return fmt.Errorf("resolve primary mapping %s: %w", primaryGVK, err)
 	}
 
+	dynamicRegistrations, err := b.dynamicRegistrations(instance)
+	if err != nil {
+		return err
+	}
+
 	registeredController, err := b.registerController(r, instance)
 	if err != nil {
 		return err
 	}
 
-	r.dynamic, err = dynamicwatcher.New(
+	r.dynamic, err = dynamicwatcher.NewWithRegistrations(
 		registeredController,
 		cacheInstance,
 		mapper,
 		primaryGVK,
-		staticGVKs...,
+		staticGVKs,
+		dynamicRegistrations,
+		dynamicwatcher.OwnershipOptions{
+			DefaultPredicates: b.options.DynamicOwnershipDefaultPredicates,
+			GVKPredicates:     b.options.DynamicOwnershipGVKPredicates,
+		},
 	)
 
 	return err
@@ -271,7 +290,7 @@ func (b *Builder) preparePrototype() (api.PlatformObject, error) {
 	return instance, nil
 }
 
-func (b *Builder) newReconciler(instance api.PlatformObject) (*Reconciler, error) {
+func (b *Builder) newReconciler(instance api.PlatformObject, hasDynamicWatches bool) (*Reconciler, error) {
 	//nolint:staticcheck // The event recorder interface matches this package's event contract.
 	recorder := b.manager.GetEventRecorderFor(b.options.ControllerName)
 	r := &Reconciler{
@@ -284,7 +303,7 @@ func (b *Builder) newReconciler(instance api.PlatformObject) (*Reconciler, error
 		cleanupRegistered: b.cleanupRegistered,
 	}
 
-	if b.options.DynamicOwnership {
+	if hasDynamicWatches {
 		r.pipeline = r.pipeline.WithAfterAction(pipeline.ActionFunc{
 			ActionName: "synchronize-dynamic-watches",
 			ExecuteFunc: func(ctx context.Context, request *pipeline.Request) error {
@@ -292,7 +311,16 @@ func (b *Builder) newReconciler(instance api.PlatformObject) (*Reconciler, error
 					return nil
 				}
 
-				return r.dynamic.Sync(ctx, request.Resources, r.options.ExcludeFromOwnership)
+				err := r.dynamic.SyncConfigured(ctx, request)
+				if err != nil {
+					return err
+				}
+
+				if !r.options.DynamicOwnership {
+					return nil
+				}
+
+				return r.dynamic.Sync(ctx, request, r.options.ExcludeFromOwnership)
 			},
 		})
 	}
@@ -314,20 +342,24 @@ func (b *Builder) registerController(
 		For(instance, builder.WithPredicates(b.predicates...))
 
 	for _, registration := range b.watch {
-		eventHandler := registration.eventHandler
-		if registration.ownerOnly {
-			eventHandler = handler.EnqueueRequestForOwner(
-				b.manager.GetScheme(),
-				b.manager.GetRESTMapper(),
-				b.prototype,
-				handler.OnlyControllerOwner(),
-			)
+		if registration.options.Dynamic {
+			continue
+		}
+
+		watchOptions, err := b.watchOptions(registration, instance)
+		if err != nil {
+			return nil, err
+		}
+
+		watchObject, err := b.normalizeWatchObject(registration.object)
+		if err != nil {
+			return nil, err
 		}
 
 		controllerBuilder = controllerBuilder.Watches(
-			registration.object,
-			eventHandler,
-			builder.WithPredicates(registration.predicates...),
+			watchObject,
+			watchOptions.EventHandler,
+			builder.WithPredicates(watchOptions.Predicates...),
 		)
 	}
 
@@ -341,6 +373,10 @@ func (b *Builder) registerController(
 func (b *Builder) staticWatchGVKs() ([]schema.GroupVersionKind, error) {
 	staticGVKs := make([]schema.GroupVersionKind, 0, len(b.watch))
 	for _, registration := range b.watch {
+		if !registration.ownerOnly {
+			continue
+		}
+
 		gvk, err := resources.EnsureGroupVersionKind(
 			b.manager.GetScheme(),
 			registration.object,
@@ -353,4 +389,116 @@ func (b *Builder) staticWatchGVKs() ([]schema.GroupVersionKind, error) {
 	}
 
 	return staticGVKs, nil
+}
+
+func (b *Builder) newWatchRegistration(
+	object client.Object,
+	ownerOnly bool,
+	options ...WatchOption,
+) watchRegistration {
+	configured := WatchOptions{
+		EventHandler:      nil,
+		Predicates:        nil,
+		DynamicPredicates: nil,
+		Dynamic:           false,
+	}
+	for _, optionValue := range options {
+		if optionValue != nil {
+			optionValue.ApplyTo(&configured)
+		}
+	}
+
+	return watchRegistration{object: object, ownerOnly: ownerOnly, options: configured}
+}
+
+func (b *Builder) hasDynamicWatches() bool {
+	for _, registration := range b.watch {
+		if registration.options.Dynamic {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (b *Builder) watchOptions(
+	registration watchRegistration,
+	instance api.PlatformObject,
+) (WatchOptions, error) {
+	configured := registration.options
+	_, err := resources.EnsureGroupVersionKind(b.manager.GetScheme(), registration.object)
+	if err != nil {
+		return WatchOptions{}, fmt.Errorf("resolve watch GVK: %w", err)
+	}
+
+	if configured.EventHandler == nil {
+		if registration.ownerOnly {
+			configured.EventHandler = handler.EnqueueRequestForOwner(
+				b.manager.GetScheme(),
+				b.manager.GetRESTMapper(),
+				instance,
+				handler.OnlyControllerOwner(),
+			)
+		} else {
+			configured.EventHandler = platformhandler.AnnotationToNameClusterScoped(platformannotations.InstanceName)
+		}
+	}
+
+	if len(configured.Predicates) != 0 {
+		return configured, nil
+	}
+
+	if registration.ownerOnly {
+		configured.Predicates = []predicate.Predicate{platformpredicate.DefaultPredicate}
+		return configured, nil
+	}
+
+	configured.Predicates = []predicate.Predicate{
+		platformpredicate.PartOf(strings.ToLower(instance.GetObjectKind().GroupVersionKind().Kind)),
+	}
+	return configured, nil
+}
+
+func (b *Builder) dynamicRegistrations(
+	instance api.PlatformObject,
+) ([]dynamicwatcher.Registration, error) {
+	registrations := make([]dynamicwatcher.Registration, 0, len(b.watch))
+	for _, registration := range b.watch {
+		if !registration.options.Dynamic {
+			continue
+		}
+
+		configured, err := b.watchOptions(registration, instance)
+		if err != nil {
+			return nil, err
+		}
+		for index, dynamicPredicate := range registration.options.DynamicPredicates {
+			if dynamicPredicate == nil {
+				return nil, fmt.Errorf("watch condition %d: %w", index, ErrNilWatchPredicate)
+			}
+		}
+
+		watchObject, err := b.normalizeWatchObject(registration.object)
+		if err != nil {
+			return nil, err
+		}
+
+		registrations = append(registrations, dynamicwatcher.Registration{
+			Object:            watchObject,
+			EventHandler:      configured.EventHandler,
+			Predicates:        configured.Predicates,
+			DynamicPredicates: registration.options.DynamicPredicates,
+		})
+	}
+
+	return registrations, nil
+}
+
+func (b *Builder) normalizeWatchObject(object client.Object) (client.Object, error) {
+	gvk, err := resources.EnsureGroupVersionKind(b.manager.GetScheme(), object)
+	if err != nil {
+		return nil, fmt.Errorf("resolve watch GVK: %w", err)
+	}
+
+	return resources.GvkToUnstructured(gvk), nil
 }

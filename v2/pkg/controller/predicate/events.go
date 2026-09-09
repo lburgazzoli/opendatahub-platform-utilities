@@ -36,6 +36,44 @@ func GenerationChanged() crpredicate.Predicate {
 	}
 }
 
+// GenerationChangedOnUpdate accepts updates whose generation changed. It is
+// the default policy for secondary watches, where creation is handled by the
+// initial reconciliation rather than by an event.
+func GenerationChangedOnUpdate() crpredicate.Predicate {
+	return Funcs{
+		CreateFunc:  nil,
+		DeleteFunc:  nil,
+		GenericFunc: nil,
+		UpdateFunc: func(value event.UpdateEvent) bool {
+			if value.ObjectOld == nil || value.ObjectNew == nil {
+				return false
+			}
+
+			if value.ObjectOld.GetGeneration() == 0 || value.ObjectNew.GetGeneration() == 0 {
+				return true
+			}
+
+			return value.ObjectOld.GetGeneration() != value.ObjectNew.GetGeneration()
+		},
+	}
+}
+
+// CreatedOrUpdatedOrDeletedNamed accepts events for one object name.
+func CreatedOrUpdatedOrDeletedNamed(name string) crpredicate.Predicate {
+	return Funcs{
+		CreateFunc: func(value event.CreateEvent) bool {
+			return value.Object != nil && value.Object.GetName() == name
+		},
+		DeleteFunc: func(value event.DeleteEvent) bool {
+			return value.Object != nil && value.Object.GetName() == name
+		},
+		GenericFunc: nil,
+		UpdateFunc: func(value event.UpdateEvent) bool {
+			return value.ObjectNew != nil && value.ObjectNew.GetName() == name
+		},
+	}
+}
+
 // PartialOptions controls which partial-object events are accepted.
 type PartialOptions struct {
 	WatchDelete bool

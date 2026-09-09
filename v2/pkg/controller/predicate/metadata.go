@@ -36,6 +36,26 @@ func HasLabel(name string, values ...string) crpredicate.Predicate {
 	})
 }
 
+// LabelFor accepts deletes and updates for objects carrying one label value.
+// Creation is rejected to match the legacy secondary-watch policy.
+func LabelFor(name string, expected string) crpredicate.Predicate {
+	return Funcs{
+		CreateFunc: nil,
+		DeleteFunc: func(value event.DeleteEvent) bool {
+			return value.Object != nil && metadataMatches(value.Object.GetLabels(), name, []string{expected})
+		},
+		GenericFunc: nil,
+		UpdateFunc: func(value event.UpdateEvent) bool {
+			if value.ObjectOld == nil || value.ObjectNew == nil {
+				return false
+			}
+
+			return metadataMatches(value.ObjectOld.GetLabels(), name, []string{expected}) ||
+				metadataMatches(value.ObjectNew.GetLabels(), name, []string{expected})
+		},
+	}
+}
+
 func metadataChanged(
 	name string,
 	values func(client.Object) map[string]string,

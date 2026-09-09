@@ -175,20 +175,30 @@ constraints as the original implementation.
   `reconciler/dynamicwatcher` package. Seed static watch GVKs and register each
   dynamic GVK at most once with a `sets.Set` protected by an `RWMutex` when the
   registry has a read-dominant fast path.
-- Use one dynamic watch handler with owner-first routing. Match the complete
-  owner GVK and controller owner reference; CRDs never use owner references.
-  Fall back to the canonical owner name and owner namespace annotations when
-  no matching controller owner exists. An owner reference has no namespace:
-  resolve primary scope through the REST mapper, use the dependent namespace
-  only for namespaced primaries, and use an empty namespace for cluster-scoped
-  primaries.
+- Keep configured conditional watches and framework-managed ownership watches
+  on one registration path, but preserve their distinct routing policies.
+  Configured `Watches` use annotation routing by default and configured
+  `Owns` use controller-owner routing; `WatchesGVK` and `OwnsGVK` are exact-GVK
+  adapters. Framework-managed owned resources use controller-owner routing,
+  unmanaged resources use a fixed primary request and delete-only predicate,
+  and CRDs use a fixed primary request with a name-specific
+  create/update/delete predicate. CRDs never use owner references. Match the
+  complete owner GVK and controller owner reference. An owner reference has no
+  namespace: resolve primary scope through the REST mapper, use the dependent
+  namespace only for namespaced primaries, and use an empty namespace for
+  cluster-scoped primaries.
 - Keep cancellation checks at the snapshot-iteration boundary. Do not add a
   one-use synchronization helper merely to check `ctx.Done`; watch
   registration itself is synchronous and cannot be interrupted by that
   context.
-- Dynamic watches use the existing controller-runtime event policy of
-  generation, label, or annotation changes, with the local false-default
-  `Funcs` wrapper so unspecified event classes are rejected.
+- Dynamic watches preserve the existing controller-runtime event policy of
+  generation, label, or annotation changes. New local predicate helpers use
+  the false-default `Funcs` wrapper so unspecified event classes are rejected.
+- Preserve the legacy dynamic-ownership compatibility rule that only the
+  managed annotation value `"false"` selects the unmanaged route. Do not
+  silently replace it with the broader annotation-presence opt-out semantics
+  used by deploy and GC; those policies must be reconciled explicitly if the
+  contract changes.
 - Predicate helpers use a local `Funcs` type whose omitted event callbacks
   return `false`; never rely on controller-runtime `predicate.Funcs` defaults
   when a predicate is intended to reject an event class. Group related

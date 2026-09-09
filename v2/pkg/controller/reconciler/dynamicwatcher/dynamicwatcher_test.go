@@ -25,7 +25,7 @@ func TestRegisterRecordsOnlySuccessfulWatches(t *testing.T) {
 	gvk := schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Component"}
 	watcher := &Watcher{
 		controller: controllerInstance,
-		registered: sets.New[schema.GroupVersionKind](),
+		registered: sets.New[watchKey](),
 	}
 
 	g.Expect(watcher.register(gvk)).Should(MatchError(ContainSubstring("watch registration failed")))

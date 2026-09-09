@@ -118,6 +118,9 @@ buildable; the v2 runtime must not depend on it.
 - [x] T12 controller integration implemented with handlers, predicates,
   reconciler lifecycle, status/finalizer handling, dynamic ownership, and
   GVK resource helpers in `798bada`.
+- [x] T12 watch-parity follow-up added typed and GVK watch registration,
+  conditional `When`/`Dynamic` watches, and legacy owned, unmanaged, and CRD
+  dynamic-watch routing with focused tests.
 - [x] T13 renderer integration committed in `8e0705d`.
 - [x] T21 framework/pipeline standalone Helm controller example and isolated
   Kind integration committed in `74ec1c6`; the plain-controller comparison is
