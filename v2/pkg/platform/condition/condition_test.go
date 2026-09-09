@@ -23,7 +23,7 @@ func TestConditionMutationAndAggregation(t *testing.T) {
 		conditions,
 		"Dependencies",
 		condition.WithReason("Unavailable"),
-		condition.WithMessage("missing %s", "API"),
+		condition.WithMessagef("missing %s", "API"),
 		condition.WithObservedGeneration(0),
 	)).Should(BeTrue())
 	g.Expect(condition.Find(conditions, "Dependencies").Message).Should(Equal("missing API"))

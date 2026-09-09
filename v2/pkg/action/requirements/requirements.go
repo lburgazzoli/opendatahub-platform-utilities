@@ -164,7 +164,7 @@ func (a *apiAction) run(values ...RunOption) error {
 			inputs.Conditions,
 			conditionType,
 			condition.WithReason(reason),
-			condition.WithMessage("%s: %s", a.name, strings.Join(formatGVKs(matched), ", ")),
+			condition.WithMessagef("%s: %s", a.name, strings.Join(formatGVKs(matched), ", ")),
 			condition.WithObservedGeneration(inputs.ObservedGeneration),
 		)
 		return action.NewErrorf("%s: %s", a.name, strings.Join(formatGVKs(matched), ", ")).Terminal()

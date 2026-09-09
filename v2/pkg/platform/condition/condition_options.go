@@ -35,8 +35,15 @@ func WithReason(reason string) MarkOption {
 	})
 }
 
-// WithMessage formats and sets the condition message.
-func WithMessage(format string, args ...any) MarkOption {
+// WithMessage sets the condition message.
+func WithMessage(message string) MarkOption {
+	return option.FunctionalOption[MarkOptions](func(options *MarkOptions) {
+		options.Message = message
+	})
+}
+
+// WithMessagef formats and sets the condition message.
+func WithMessagef(format string, args ...any) MarkOption {
 	return option.FunctionalOption[MarkOptions](func(options *MarkOptions) {
 		options.Message = fmt.Sprintf(format, args...)
 	})
