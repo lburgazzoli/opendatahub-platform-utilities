@@ -55,23 +55,25 @@ verified against [`v2.md`](v2.md),
   inputs, and add a regression test covering invalid action configuration with
   missing invocation inputs.
 
-### F-003 — The v2 module does not use the requested current Helm renderer
+### F-003 — The v2 module did not use the requested current Helm renderer
 
 - Severity: medium
-- Status: accepted for T18 remediation
-- Owner: T18 implementation agent (`luna-high`)
+- Status: resolved in T18 finding-2 remediation
+- Owner: none
 - Evidence: [`v2/go.mod`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/go.mod:5)
-  pins `github.com/k8s-manifest-kit/renderer-helm` to `v0.2.0`. The requested
-  migration direction is the current `@main` dependency, while the root module
-  already resolves a newer pseudo-version. The v2 module therefore does not
-  match the renderer baseline used by the consumer migration.
+  now resolves the current `@main` revisions of the Helm, Go-template, and
+  Kustomize renderers. Their shared engine API and the compatible
+  controller-runtime/Kubernetes dependency line were updated together, and
+  the affected renderer call sites use the current engine options API.
 - Impact: v2 consumers can compile and behave against a different Helm
   renderer API and implementation than the intended current manifest-kit
   integration; fixes made in the current renderer are not covered by v2
   validation.
-- Remediation: update the v2 module to the current renderer-helm `@main`
-  revision (recorded as its resolved pseudo-version), run `go mod tidy` in the
-  v2 workspace, and rerun renderer and example integration tests.
+- Verification: the v2 race test suite, `go vet`, formatting verification, the
+  integration test package, and the Helm example tests pass. `make tidy` still
+  cannot complete from the v2 module alone because the workspace integration
+  tests import the local `testkit/kind` module; this is a workspace-resolution
+  limitation rather than a renderer or compile failure.
 
 ### F-004 — Discovery documentation had described the wrapper manager inconsistently
 
@@ -237,7 +239,7 @@ verified against [`v2.md`](v2.md),
 
 ## Disposition
 
-Findings F-002, F-003, and F-005 through F-012 are accepted for the next task,
+Findings F-002 and F-005 through F-012 remain accepted for the next task,
 T18. F-001 is rejected as a review misclassification after confirming that
 typed/unstructured cache coherence is required. F-004 is resolved by the
 master-document correction. The historical scenario-catalog concern remains

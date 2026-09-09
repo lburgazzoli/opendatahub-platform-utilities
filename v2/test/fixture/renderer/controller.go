@@ -7,6 +7,8 @@ import (
 	"fmt"
 
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
+	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
+	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
@@ -55,7 +57,7 @@ func (c *Controller) RenderResources(ctx context.Context, request *pipeline.Requ
 		values = c.values(request.Instance)
 	}
 
-	rendered, err := c.renderer.Render(ctx, manifestengine.WithValues(values))
+	rendered, err := c.renderer.Render(ctx, manifestrender.WithValues(manifesttypes.Values(values)))
 	if err != nil {
 		return fmt.Errorf("render resources: %w", err)
 	}

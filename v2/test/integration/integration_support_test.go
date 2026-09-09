@@ -10,7 +10,8 @@ import (
 	"testing"
 	"time"
 
-	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
+	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
+	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
 	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	. "github.com/onsi/gomega"
 	corev1 "k8s.io/api/core/v1"
@@ -97,7 +98,7 @@ func setupController(t *testing.T, manager ctrlmanager.Manager) error {
 				return err
 			}
 
-			rendered, err := renderer.Render(ctx, manifestengine.WithValues(map[string]any{
+			rendered, err := renderer.Render(ctx, manifestrender.WithValues(manifesttypes.Values{
 				"name":      component.GetName(),
 				"namespace": component.GetNamespace(),
 			}))
