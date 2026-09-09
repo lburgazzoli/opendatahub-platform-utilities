@@ -28,6 +28,7 @@ func defaultOptions() Options {
 	return Options{
 		CleanupTimeout: new(defaultCleanupTimeout),
 		ConditionTypes: []api.ConditionType{api.ConditionTypeProvisioningSucceeded},
+		FinalizerName:  DefaultFinalizerName,
 	}
 }
 
@@ -37,6 +38,7 @@ func defaultOptions() Options {
 type Options struct {
 	ControllerName                    string
 	FieldOwner                        string
+	FinalizerName                     string
 	DefaultRequeueAfter               time.Duration
 	DynamicOwnership                  bool
 	CleanupTimeout                    *time.Duration
@@ -54,6 +56,7 @@ type Options struct {
 func (o Options) ApplyTo(target *Options) {
 	target.ControllerName = o.ControllerName
 	target.FieldOwner = o.FieldOwner
+	target.FinalizerName = o.FinalizerName
 
 	if o.CleanupTimeout != nil {
 		target.CleanupTimeout = new(*o.CleanupTimeout)
@@ -90,6 +93,13 @@ func WithControllerName(name string) Option {
 func WithFieldOwner(owner string) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.FieldOwner = owner
+	})
+}
+
+// WithFinalizerName sets the finalizer used for cleanup actions.
+func WithFinalizerName(name string) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.FinalizerName = name
 	})
 }
 

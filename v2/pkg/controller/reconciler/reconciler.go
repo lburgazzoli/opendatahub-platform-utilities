@@ -72,8 +72,8 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return r.cleanup(ctx, instance)
 	}
 
-	if r.pipeline.HasCleanupActions() && !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
-		controllerutil.AddFinalizer(instance, DefaultFinalizerName)
+	if r.pipeline.HasCleanupActions() && !controllerutil.ContainsFinalizer(instance, r.options.FinalizerName) {
+		controllerutil.AddFinalizer(instance, r.options.FinalizerName)
 		err = r.client.Update(ctx, instance)
 		if err != nil {
 			return ctrl.Result{}, fmt.Errorf("add reconciler finalizer: %w", err)

@@ -9,6 +9,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -22,6 +23,7 @@ func TestReconcileInstallsCleanupFinalizerBeforeNormalActions(t *testing.T) {
 	g := NewWithT(t)
 	object := testObjectInstance("component")
 	kubernetesClient := testClient(object)
+	finalizerName := "example.io/finalizer"
 	called := false
 	reconcilerValue := &Reconciler{
 		client:    kubernetesClient,
@@ -39,6 +41,7 @@ func TestReconcileInstallsCleanupFinalizerBeforeNormalActions(t *testing.T) {
 		options: Options{
 			ControllerName: "component",
 			FieldOwner:     "component",
+			FinalizerName:  finalizerName,
 		},
 		recorder: record.NewFakeRecorder(10),
 	}
@@ -50,7 +53,7 @@ func TestReconcileInstallsCleanupFinalizerBeforeNormalActions(t *testing.T) {
 	updated := &testObject{}
 	updated.SetGroupVersionKind(testObjectGVK)
 	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKeyFromObject(object), updated)).Should(Succeed())
-	g.Expect(updated.GetFinalizers()).Should(ContainElement(DefaultFinalizerName))
+	g.Expect(updated.GetFinalizers()).Should(ContainElement(finalizerName))
 }
 
 func TestReconcileRunsCleanupAndRemovesFinalizer(t *testing.T) {
@@ -118,6 +121,39 @@ func TestCleanupDeadlineSkipsActionsAndRemovesFinalizer(t *testing.T) {
 	g.Expect(object.GetFinalizers()).ShouldNot(ContainElement(DefaultFinalizerName))
 }
 
+func TestFinishCleanupSkipsUpdateWhenFinalizerIsAbsent(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	object := testObjectInstance("component")
+	baseClient := testClient(object)
+	withWatch, ok := baseClient.(client.WithWatch)
+	if !ok {
+		t.Fatal("test client must implement client.WithWatch")
+	}
+
+	updates := 0
+	kubernetesClient := interceptor.NewClient(withWatch, interceptor.Funcs{
+		Update: func(context.Context, client.WithWatch, client.Object, ...client.UpdateOption) error {
+			updates++
+
+			return nil
+		},
+	})
+	reconcilerValue := cleanupReconciler(kubernetesClient, pipeline.New())
+
+	result, err := reconcilerValue.finishCleanup(
+		t.Context(),
+		object,
+		corev1.EventTypeNormal,
+		"cleanup completed",
+	)
+
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result).Should(BeZero())
+	g.Expect(updates).Should(BeZero())
+}
+
 func deletingObject(deletionTime time.Time) *testObject {
 	object := testObjectInstance("component")
 	object.SetFinalizers([]string{DefaultFinalizerName})
@@ -150,6 +186,7 @@ func cleanupReconciler(kubernetesClient client.Client, value *pipeline.Pipeline)
 		options: Options{
 			ControllerName: "component",
 			FieldOwner:     "component",
+			FinalizerName:  DefaultFinalizerName,
 			CleanupTimeout: new(time.Duration(0)),
 		},
 		recorder: record.NewFakeRecorder(10),

@@ -17,7 +17,7 @@ const cleanupReason = "Cleanup"
 
 //nolint:cyclop // Cleanup keeps deadline, outcome, and finalizer decisions together.
 func (r *Reconciler) cleanup(ctx context.Context, instance api.PlatformObject) (ctrl.Result, error) {
-	if !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
+	if !controllerutil.ContainsFinalizer(instance, r.options.FinalizerName) {
 		return ctrl.Result{}, nil
 	}
 
@@ -126,10 +126,11 @@ func (r *Reconciler) finishCleanup(
 	eventType string,
 	message string,
 ) (ctrl.Result, error) {
-	controllerutil.RemoveFinalizer(instance, DefaultFinalizerName)
-	err := r.client.Update(ctx, instance)
-	if err != nil {
-		return ctrl.Result{}, fmt.Errorf("remove reconciler finalizer: %w", err)
+	if controllerutil.RemoveFinalizer(instance, r.options.FinalizerName) {
+		err := r.client.Update(ctx, instance)
+		if err != nil {
+			return ctrl.Result{}, fmt.Errorf("remove reconciler finalizer: %w", err)
+		}
 	}
 
 	r.recorder.Event(instance, eventType, cleanupReason, message)

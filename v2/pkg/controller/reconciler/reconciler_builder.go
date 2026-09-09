@@ -39,6 +39,9 @@ func For(
 		}
 	}
 	configured.ConditionTypes = normalizeConditionTypes(configured.ConditionTypes)
+	if configured.FinalizerName == "" {
+		configured.FinalizerName = DefaultFinalizerName
+	}
 
 	return &Builder{
 		manager:   mgr,

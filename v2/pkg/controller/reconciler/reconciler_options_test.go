@@ -21,11 +21,13 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 		api.ConditionType("DependenciesAvailable"),
 		api.ConditionTypeDegraded,
 	}
+	finalizerName := "example.io/finalizer"
 
 	structOptions := defaultOptions()
 	Options{
 		CleanupTimeout:   &zero,
 		FieldOwner:       "status-owner",
+		FinalizerName:    finalizerName,
 		PlatformProfile:  &profile,
 		DynamicOwnership: true,
 		ConditionTypes:   conditionTypes,
@@ -35,6 +37,7 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 	for _, optionValue := range []Option{
 		WithCleanupTimeout(0),
 		WithFieldOwner("status-owner"),
+		WithFinalizerName(finalizerName),
 		WithPlatformProfile(profile),
 		WithDynamicOwnership(),
 		WithConditionTypes(api.ConditionType("DependenciesAvailable"), api.ConditionTypeDegraded),
