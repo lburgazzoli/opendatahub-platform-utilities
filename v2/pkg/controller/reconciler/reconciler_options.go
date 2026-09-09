@@ -17,12 +17,11 @@ const (
 )
 
 var (
-	ErrManagerRequired          = errors.New("reconciler manager is required")
-	ErrPrototypeRequired        = errors.New("reconciler prototype is required")
-	ErrCleanupTimeout           = errors.New("reconciler cleanup timeout cannot be negative")
-	ErrPrototypeCopy            = errors.New("reconciler prototype deep copy is invalid")
-	ErrStatusRequired           = errors.New("reconciler status is required")
-	ErrConditionManagerRequired = errors.New("reconciler condition manager is required")
+	ErrManagerRequired   = errors.New("reconciler manager is required")
+	ErrPrototypeRequired = errors.New("reconciler prototype is required")
+	ErrCleanupTimeout    = errors.New("reconciler cleanup timeout cannot be negative")
+	ErrPrototypeCopy     = errors.New("reconciler prototype deep copy is invalid")
+	ErrStatusRequired    = errors.New("reconciler status is required")
 )
 
 func defaultOptions() Options {
@@ -44,7 +43,6 @@ type Options struct {
 	ExcludeFromOwnership              []schema.GroupVersionKind
 	DynamicOwnershipDefaultPredicates []crpredicate.Predicate
 	DynamicOwnershipGVKPredicates     map[schema.GroupVersionKind][]crpredicate.Predicate
-	ConditionManager                  ConditionManagerFactory
 }
 
 // ApplyTo applies a complete option value to target while preserving absent
@@ -62,7 +60,6 @@ func (o Options) ApplyTo(target *Options) {
 	target.ExcludeFromOwnership = slices.Clone(o.ExcludeFromOwnership)
 	target.DynamicOwnershipDefaultPredicates = slices.Clone(o.DynamicOwnershipDefaultPredicates)
 	target.DynamicOwnershipGVKPredicates = clonePredicateMap(o.DynamicOwnershipGVKPredicates)
-	target.ConditionManager = o.ConditionManager
 
 	if o.PlatformProfile == nil {
 		target.PlatformProfile = nil
@@ -160,12 +157,4 @@ func clonePredicateMap(
 	}
 
 	return cloned
-}
-
-// WithConditionManagerFactory configures reconciler-owned condition status
-// processing.
-func WithConditionManagerFactory(factory ConditionManagerFactory) Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		options.ConditionManager = factory
-	})
 }

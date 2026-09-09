@@ -25,21 +25,12 @@ func (r *Reconciler) applyStatus(
 	status.ObservedGeneration = generation
 
 	if accessor, ok := instance.(api.ConditionsAccessor); ok {
-		factory := r.options.ConditionManager
-		if factory == nil {
-			factory = defaultConditionManagerFactory
-		}
-
-		manager := factory(accessor)
-		if manager == nil {
-			return ErrConditionManagerRequired
-		}
-
-		manager.Apply(outcome, generation)
+		markProvisioning(accessor, outcome, generation)
+		aggregateConditions(accessor)
 	}
 
 	if accessor, ok := instance.(api.PhaseStatusAccessor); ok {
-		phase := api.PhaseReady
+		phase := api.PhaseNotReady
 		switch {
 		case outcome.Err() == nil:
 			phase = api.PhaseReady
