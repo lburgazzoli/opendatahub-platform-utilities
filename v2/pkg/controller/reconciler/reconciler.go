@@ -30,14 +30,13 @@ const (
 //
 //nolint:govet // The fields are grouped by client, pipeline, and lifecycle state.
 type Reconciler struct {
-	cleanupRegistered bool
-	client            client.Client
-	scheme            *runtime.Scheme
-	prototype         api.PlatformObject
-	pipeline          *pipeline.Pipeline
-	options           Options
-	recorder          record.EventRecorder
-	dynamic           *dynamicwatcher.Watcher
+	client    client.Client
+	scheme    *runtime.Scheme
+	prototype api.PlatformObject
+	pipeline  *pipeline.Pipeline
+	options   Options
+	recorder  record.EventRecorder
+	dynamic   *dynamicwatcher.Watcher
 }
 
 var _ reconcile.Reconciler = (*Reconciler)(nil)
@@ -77,7 +76,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return r.cleanup(ctx, instance)
 	}
 
-	if r.cleanupRegistered && !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
+	if r.pipeline.HasCleanupActions() && !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
 		controllerutil.AddFinalizer(instance, DefaultFinalizerName)
 		err = r.client.Update(ctx, instance)
 		if err != nil {

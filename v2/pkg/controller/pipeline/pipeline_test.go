@@ -172,6 +172,21 @@ func TestPipelineCachesValidation(t *testing.T) {
 	g.Expect(validationCalls).Should(Equal(1))
 }
 
+func TestHasCleanupActions(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	pipelineValue := pipeline.New()
+
+	g.Expect(pipelineValue.HasCleanupActions()).Should(BeFalse())
+
+	pipelineValue = pipelineValue.WithCleanupAction(pipeline.ActionFunc{
+		ActionName: "cleanup",
+	})
+
+	g.Expect(pipelineValue.HasCleanupActions()).Should(BeTrue())
+}
+
 func TestCleanupStopsOnlyOnBlockingErrors(t *testing.T) {
 	t.Parallel()
 

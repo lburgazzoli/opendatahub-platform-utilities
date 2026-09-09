@@ -83,6 +83,11 @@ func (p *Pipeline) WithCleanupActionFunc(
 	return p.WithCleanupAction(Wrap(execute), options...)
 }
 
+// HasCleanupActions reports whether the pipeline has deletion cleanup actions.
+func (p *Pipeline) HasCleanupActions() bool {
+	return len(p.options.Cleanup) > 0
+}
+
 func (p *Pipeline) Validate() error {
 	return p.validate()
 }

@@ -33,13 +33,14 @@ func TestReconcileInstallsCleanupFinalizerBeforeNormalActions(t *testing.T) {
 				called = true
 				return nil
 			},
+		}).WithCleanupAction(pipeline.ActionFunc{
+			ActionName: "cleanup",
 		}),
 		options: Options{
 			ControllerName: "component",
 			FieldOwner:     "component",
 		},
-		cleanupRegistered: true,
-		recorder:          record.NewFakeRecorder(10),
+		recorder: record.NewFakeRecorder(10),
 	}
 
 	_, err := reconcilerValue.Reconcile(t.Context(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(object)})
@@ -151,7 +152,6 @@ func cleanupReconciler(kubernetesClient client.Client, value *pipeline.Pipeline)
 			FieldOwner:     "component",
 			CleanupTimeout: new(time.Duration(0)),
 		},
-		cleanupRegistered: true,
-		recorder:          record.NewFakeRecorder(10),
+		recorder: record.NewFakeRecorder(10),
 	}
 }

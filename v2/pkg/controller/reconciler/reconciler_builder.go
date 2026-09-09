@@ -33,14 +33,13 @@ type watchRegistration struct {
 
 // Builder configures a controller topology and its action pipeline.
 type Builder struct {
-	manager           manager.Manager
-	prototype         api.PlatformObject
-	options           Options
-	pipeline          *pipeline.Pipeline
-	watch             []watchRegistration
-	rawSources        []source.Source
-	predicates        []predicate.Predicate
-	cleanupRegistered bool
+	manager    manager.Manager
+	prototype  api.PlatformObject
+	options    Options
+	pipeline   *pipeline.Pipeline
+	watch      []watchRegistration
+	rawSources []source.Source
+	predicates []predicate.Predicate
 }
 
 // For starts a reconciler builder for a primary object type.
@@ -114,7 +113,6 @@ func (b *Builder) WithAfterActionFunc(
 // WithCleanupAction registers an action in the deletion cleanup phase.
 func (b *Builder) WithCleanupAction(value pipeline.Action, options ...pipeline.ActionOption) *Builder {
 	b.pipeline = b.pipeline.WithCleanupAction(value, options...)
-	b.cleanupRegistered = true
 	return b
 }
 
@@ -294,13 +292,12 @@ func (b *Builder) newReconciler(instance api.PlatformObject, hasDynamicWatches b
 	//nolint:staticcheck // The event recorder interface matches this package's event contract.
 	recorder := b.manager.GetEventRecorderFor(b.options.ControllerName)
 	r := &Reconciler{
-		client:            b.manager.GetClient(),
-		scheme:            b.manager.GetScheme(),
-		prototype:         instance,
-		pipeline:          b.pipeline,
-		options:           b.options,
-		recorder:          recorder,
-		cleanupRegistered: b.cleanupRegistered,
+		client:    b.manager.GetClient(),
+		scheme:    b.manager.GetScheme(),
+		prototype: instance,
+		pipeline:  b.pipeline,
+		options:   b.options,
+		recorder:  recorder,
 	}
 
 	if hasDynamicWatches {
