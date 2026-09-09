@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T16 and T21–T24 complete**
+Status: **implementation in progress; T00–T17 and T21–T24 complete; T18–T20 pending**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -155,7 +155,11 @@ buildable; the v2 runtime must not depend on it.
 - [x] T24 added explicit bootstrap cluster-distribution, OpenShift, OLM, and
   CRD discovery primitives with shared GVK constants; product profile
   composition remains caller-owned.
-- [ ] T17–T20 review, validation, and closeout tasks executed.
+- [x] T17 completed the independent `sol-high` adversarial review; findings
+  are recorded in [`findings.md`](findings.md) and assigned to T18.
+- [ ] T18 accepted finding remediation and regression coverage completed.
+- [ ] T19 final validation completed.
+- [ ] T20 closeout completed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.
