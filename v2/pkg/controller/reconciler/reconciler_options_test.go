@@ -16,6 +16,7 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 	g := NewWithT(t)
 	zero := time.Duration(0)
 	profile := api.PlatformProfile{Kind: "Kubernetes", Annotations: map[string]string{"example.io/key": "value"}}
+	conditionTypes := []api.ConditionType{api.ConditionTypeDegraded}
 
 	structOptions := defaultOptions()
 	Options{
@@ -23,6 +24,7 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 		FieldOwner:       "status-owner",
 		PlatformProfile:  &profile,
 		DynamicOwnership: true,
+		ConditionTypes:   conditionTypes,
 	}.ApplyTo(&structOptions)
 
 	functionalOptions := defaultOptions()
@@ -31,6 +33,7 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 		WithFieldOwner("status-owner"),
 		WithPlatformProfile(profile),
 		WithDynamicOwnership(),
+		WithConditionTypes(api.ConditionTypeDegraded),
 	} {
 		optionValue.ApplyTo(&functionalOptions)
 	}

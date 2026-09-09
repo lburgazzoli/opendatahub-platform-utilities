@@ -148,8 +148,9 @@ buildable; the v2 runtime must not depend on it.
 - [x] T16 removed the obsolete nested framework module and migrated repository
   documentation and Makefile references; the root module remains as the
   explicitly retained v1 compatibility surface.
-- [x] T22 added a reconciler-owned, factory-configurable condition manager
-  without adding condition state to `pipeline.Request`.
+- [x] T22 added reconciler-owned condition processing without adding condition
+  state to `pipeline.Request`; aggregation uses explicit controller-configured
+  dependent condition types and always includes `ProvisioningSucceeded`.
 - [x] T23 added OpenShift API-server TLS profile helpers, startup fallback, and
   a semantic-change watcher under `v2/pkg/kube/openshift/tls`.
 - [x] T24 added explicit bootstrap cluster-distribution, OpenShift, OLM, and

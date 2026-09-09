@@ -43,6 +43,7 @@ type Options struct {
 	ExcludeFromOwnership              []schema.GroupVersionKind
 	DynamicOwnershipDefaultPredicates []crpredicate.Predicate
 	DynamicOwnershipGVKPredicates     map[schema.GroupVersionKind][]crpredicate.Predicate
+	ConditionTypes                    []api.ConditionType
 }
 
 // ApplyTo applies a complete option value to target while preserving absent
@@ -60,6 +61,9 @@ func (o Options) ApplyTo(target *Options) {
 	target.ExcludeFromOwnership = slices.Clone(o.ExcludeFromOwnership)
 	target.DynamicOwnershipDefaultPredicates = slices.Clone(o.DynamicOwnershipDefaultPredicates)
 	target.DynamicOwnershipGVKPredicates = clonePredicateMap(o.DynamicOwnershipGVKPredicates)
+	if o.ConditionTypes != nil {
+		target.ConditionTypes = slices.Clone(o.ConditionTypes)
+	}
 
 	if o.PlatformProfile == nil {
 		target.PlatformProfile = nil
@@ -123,6 +127,14 @@ func WithPlatformProfile(profile api.PlatformProfile) Option {
 func WithExcludedOwnershipTypes(types ...schema.GroupVersionKind) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.ExcludeFromOwnership = append(options.ExcludeFromOwnership, types...)
+	})
+}
+
+// WithConditionTypes adds condition types to the Ready aggregation.
+// ProvisioningSucceeded is always included by the reconciler.
+func WithConditionTypes(values ...api.ConditionType) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.ConditionTypes = append(options.ConditionTypes, values...)
 	})
 }
 

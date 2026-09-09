@@ -26,7 +26,7 @@ func (r *Reconciler) applyStatus(
 
 	if accessor, ok := instance.(api.ConditionsAccessor); ok {
 		markProvisioning(accessor, outcome, generation)
-		aggregateConditions(accessor)
+		aggregateConditions(accessor, r.options.ConditionTypes)
 	}
 
 	if accessor, ok := instance.(api.PhaseStatusAccessor); ok {

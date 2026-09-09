@@ -8,6 +8,7 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/conversion"
@@ -50,6 +51,35 @@ func TestInstanceRejectsNilRequest(t *testing.T) {
 
 	g.Expect(actual).Should(BeNil())
 	g.Expect(err).Should(MatchError(MatchRegexp("reconciler request instance has unexpected type: request is nil")))
+}
+
+func TestAggregateConditionsUsesConfiguredTypes(t *testing.T) {
+	t.Parallel()
+
+	object := testObjectInstance("component")
+	object.Status.Conditions = []api.Condition{
+		{
+			Type:   string(api.ConditionTypeProvisioningSucceeded),
+			Status: v1.ConditionTrue,
+		},
+		{
+			Type:   string(api.ConditionTypeDegraded),
+			Status: v1.ConditionFalse,
+		},
+		{
+			Type:   "Unlisted",
+			Status: v1.ConditionFalse,
+		},
+	}
+
+	aggregateConditions(object, []api.ConditionType{api.ConditionTypeDegraded})
+
+	g := NewWithT(t)
+	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionFalse))
+
+	object.Status.Conditions[1].Status = v1.ConditionTrue
+	aggregateConditions(object, []api.ConditionType{api.ConditionTypeDegraded})
+	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionTrue))
 }
 
 type instanceTestObject struct {

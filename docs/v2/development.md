@@ -98,6 +98,10 @@ constraints as the original implementation.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.
+- Reconciler condition aggregation must use the controller's explicit dependent
+  condition list; never infer dependents by scanning every condition on the
+  object. `ProvisioningSucceeded` is always included as the framework-owned
+  dependent condition.
 - Destructive actions must reject an empty selector during construction unless
   the caller explicitly opts into an unbounded operation. Observation actions
   must also require an explicit selector; an empty selector must never mean
