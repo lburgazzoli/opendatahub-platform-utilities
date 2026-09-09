@@ -16,7 +16,11 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 	g := NewWithT(t)
 	zero := time.Duration(0)
 	profile := api.PlatformProfile{Kind: "Kubernetes", Annotations: map[string]string{"example.io/key": "value"}}
-	conditionTypes := []api.ConditionType{api.ConditionTypeDegraded}
+	conditionTypes := []api.ConditionType{
+		api.ConditionTypeDegraded,
+		api.ConditionType("DependenciesAvailable"),
+		api.ConditionTypeDegraded,
+	}
 
 	structOptions := defaultOptions()
 	Options{
@@ -33,14 +37,21 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 		WithFieldOwner("status-owner"),
 		WithPlatformProfile(profile),
 		WithDynamicOwnership(),
-		WithConditionTypes(api.ConditionTypeDegraded),
+		WithConditionTypes(api.ConditionType("DependenciesAvailable"), api.ConditionTypeDegraded),
 	} {
 		optionValue.ApplyTo(&functionalOptions)
 	}
+	structOptions.ConditionTypes = normalizeConditionTypes(structOptions.ConditionTypes)
+	functionalOptions.ConditionTypes = normalizeConditionTypes(functionalOptions.ConditionTypes)
 
 	g.Expect(structOptions.CleanupTimeout).ShouldNot(BeNil())
 	g.Expect(*structOptions.CleanupTimeout).Should(BeZero())
 	g.Expect(structOptions).Should(Equal(functionalOptions))
+	g.Expect(structOptions.ConditionTypes).Should(Equal([]api.ConditionType{
+		api.ConditionTypeDegraded,
+		api.ConditionType("DependenciesAvailable"),
+		api.ConditionTypeProvisioningSucceeded,
+	}))
 
 	profile.Annotations["example.io/key"] = "changed"
 	g.Expect(structOptions.PlatformProfile.Annotations["example.io/key"]).Should(Equal("value"))

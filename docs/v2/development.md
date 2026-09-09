@@ -98,6 +98,9 @@ constraints as the original implementation.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.
+- Normalize option-derived collections once during builder construction and
+  store their deterministic representation; do not repeat normalization during
+  reconciliation.
 - Reconciler condition aggregation must use the controller's explicit dependent
   condition list; never infer dependents by scanning every condition on the
   object. `ProvisioningSucceeded` is always included as the framework-owned

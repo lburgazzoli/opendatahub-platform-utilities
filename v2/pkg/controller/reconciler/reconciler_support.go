@@ -3,12 +3,12 @@ package reconciler
 import (
 	"errors"
 	"fmt"
-	"slices"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
+	"k8s.io/apimachinery/pkg/util/sets"
 )
 
 var ErrInstanceType = errors.New("reconciler request instance has unexpected type")
@@ -41,23 +41,32 @@ func (r *Reconciler) request(instance api.PlatformObject) *pipeline.Request {
 	}
 }
 
+func normalizeConditionTypes(values []api.ConditionType) []api.ConditionType {
+	conditionTypes := sets.New(values...)
+	conditionTypes.Insert(api.ConditionTypeProvisioningSucceeded)
+	conditionTypes.Delete(api.ConditionTypeReady)
+
+	return sets.List(conditionTypes)
+}
+
 func aggregateConditions(
 	accessor api.ConditionsAccessor,
 	conditionTypes []api.ConditionType,
 ) {
-	dependentTypes := []string{string(api.ConditionTypeProvisioningSucceeded)}
-	for _, conditionType := range conditionTypes {
-		if conditionType == api.ConditionTypeReady ||
-			conditionType == api.ConditionTypeProvisioningSucceeded {
-			continue
-		}
+	dependentTypes := make([]string, 0, len(conditionTypes))
 
-		dependentTypes = append(dependentTypes, string(conditionType))
+	for _, conditionType := range conditionTypes {
+		switch conditionType {
+		case api.ConditionTypeReady:
+			continue
+		default:
+			dependentTypes = append(dependentTypes, string(conditionType))
+		}
 	}
 
 	condition.Aggregate(
 		accessor,
 		string(api.ConditionTypeReady),
-		slices.Compact(dependentTypes)...,
+		dependentTypes...,
 	)
 }

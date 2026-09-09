@@ -72,13 +72,14 @@ func TestAggregateConditionsUsesConfiguredTypes(t *testing.T) {
 		},
 	}
 
-	aggregateConditions(object, []api.ConditionType{api.ConditionTypeDegraded})
+	conditionTypes := normalizeConditionTypes([]api.ConditionType{api.ConditionTypeDegraded})
+	aggregateConditions(object, conditionTypes)
 
 	g := NewWithT(t)
 	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionFalse))
 
 	object.Status.Conditions[1].Status = v1.ConditionTrue
-	aggregateConditions(object, []api.ConditionType{api.ConditionTypeDegraded})
+	aggregateConditions(object, conditionTypes)
 	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionTrue))
 }
 

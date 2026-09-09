@@ -38,6 +38,7 @@ func For(
 			optionValue.ApplyTo(&configured)
 		}
 	}
+	configured.ConditionTypes = normalizeConditionTypes(configured.ConditionTypes)
 
 	return &Builder{
 		manager:   mgr,

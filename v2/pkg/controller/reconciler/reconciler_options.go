@@ -27,6 +27,7 @@ var (
 func defaultOptions() Options {
 	return Options{
 		CleanupTimeout: new(defaultCleanupTimeout),
+		ConditionTypes: []api.ConditionType{api.ConditionTypeProvisioningSucceeded},
 	}
 }
 
@@ -43,7 +44,9 @@ type Options struct {
 	ExcludeFromOwnership              []schema.GroupVersionKind
 	DynamicOwnershipDefaultPredicates []crpredicate.Predicate
 	DynamicOwnershipGVKPredicates     map[schema.GroupVersionKind][]crpredicate.Predicate
-	ConditionTypes                    []api.ConditionType
+	// ConditionTypes contains the normalized dependent condition types. It
+	// always includes ProvisioningSucceeded and excludes Ready.
+	ConditionTypes []api.ConditionType
 }
 
 // ApplyTo applies a complete option value to target while preserving absent
