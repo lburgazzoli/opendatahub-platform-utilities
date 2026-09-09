@@ -7,7 +7,6 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
-	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 	"k8s.io/apimachinery/pkg/util/sets"
 )
 
@@ -47,26 +46,4 @@ func normalizeConditionTypes(values []api.ConditionType) []api.ConditionType {
 	conditionTypes.Delete(api.ConditionTypeReady)
 
 	return sets.List(conditionTypes)
-}
-
-func aggregateConditions(
-	accessor api.ConditionsAccessor,
-	conditionTypes []api.ConditionType,
-) {
-	dependentTypes := make([]string, 0, len(conditionTypes))
-
-	for _, conditionType := range conditionTypes {
-		switch conditionType {
-		case api.ConditionTypeReady:
-			continue
-		default:
-			dependentTypes = append(dependentTypes, string(conditionType))
-		}
-	}
-
-	condition.Aggregate(
-		accessor,
-		string(api.ConditionTypeReady),
-		dependentTypes...,
-	)
 }

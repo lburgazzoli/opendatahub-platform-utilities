@@ -53,7 +53,7 @@ func TestInstanceRejectsNilRequest(t *testing.T) {
 	g.Expect(err).Should(MatchError(MatchRegexp("reconciler request instance has unexpected type: request is nil")))
 }
 
-func TestAggregateConditionsUsesConfiguredTypes(t *testing.T) {
+func TestConditionAggregationUsesConfiguredTypes(t *testing.T) {
 	t.Parallel()
 
 	object := testObjectInstance("component")
@@ -73,13 +73,13 @@ func TestAggregateConditionsUsesConfiguredTypes(t *testing.T) {
 	}
 
 	conditionTypes := normalizeConditionTypes([]api.ConditionType{api.ConditionTypeDegraded})
-	aggregateConditions(object, conditionTypes)
+	condition.Aggregate(object, api.ConditionTypeReady, conditionTypes...)
 
 	g := NewWithT(t)
 	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionFalse))
 
 	object.Status.Conditions[1].Status = v1.ConditionTrue
-	aggregateConditions(object, conditionTypes)
+	condition.Aggregate(object, api.ConditionTypeReady, conditionTypes...)
 	g.Expect(condition.Find(object, string(api.ConditionTypeReady)).Status).Should(Equal(v1.ConditionTrue))
 }
 

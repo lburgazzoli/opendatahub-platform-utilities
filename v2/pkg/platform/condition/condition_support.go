@@ -163,7 +163,11 @@ func IsPresentAndEqual(accessor api.ConditionsAccessor, conditionType string, ex
 }
 
 // Aggregate sets the happy condition from the worst error-severity dependent.
-func Aggregate(accessor api.ConditionsAccessor, happyType string, dependentTypes ...string) bool {
+func Aggregate(
+	accessor api.ConditionsAccessor,
+	happyType api.ConditionType,
+	dependentTypes ...api.ConditionType,
+) bool {
 	if accessor == nil {
 		return false
 	}
@@ -171,7 +175,7 @@ func Aggregate(accessor api.ConditionsAccessor, happyType string, dependentTypes
 	var worst *api.Condition
 
 	for _, dependentType := range dependentTypes {
-		current := Find(accessor, dependentType)
+		current := Find(accessor, string(dependentType))
 		if current == nil || current.Severity == api.ConditionSeverityInfo || current.Status == metav1.ConditionTrue {
 			continue
 		}
@@ -182,11 +186,11 @@ func Aggregate(accessor api.ConditionsAccessor, happyType string, dependentTypes
 	}
 
 	if worst == nil {
-		return MarkTrue(accessor, happyType, WithReason("AllDependentsHealthy"))
+		return MarkTrue(accessor, string(happyType), WithReason("AllDependentsHealthy"))
 	}
 
 	return Set(accessor, api.Condition{
-		Type:    happyType,
+		Type:    string(happyType),
 		Status:  worst.Status,
 		Reason:  worst.Reason,
 		Message: worst.Message,
