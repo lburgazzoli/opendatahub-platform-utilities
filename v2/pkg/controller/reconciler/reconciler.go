@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"reflect"
-	"slices"
 	"time"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
@@ -78,7 +77,7 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 		return r.cleanup(ctx, instance)
 	}
 
-	if r.cleanupRegistered && !hasFinalizer(instance, DefaultFinalizerName) {
+	if r.cleanupRegistered && !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
 		controllerutil.AddFinalizer(instance, DefaultFinalizerName)
 		err = r.client.Update(ctx, instance)
 		if err != nil {
@@ -99,25 +98,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 	return r.interpret(instance, outcome, "reconcile", provisioningReason)
 }
 
-func hasFinalizer(object client.Object, name string) bool {
-	return slices.Contains(object.GetFinalizers(), name)
-}
-
-func removeFinalizer(object client.Object, name string) {
-	finalizers := object.GetFinalizers()
-	for index, value := range finalizers {
-		if value != name {
-			continue
-		}
-
-		object.SetFinalizers(append(finalizers[:index], finalizers[index+1:]...))
-		return
-	}
-}
-
 //nolint:cyclop // Cleanup keeps deadline, outcome, and finalizer decisions together.
 func (r *Reconciler) cleanup(ctx context.Context, instance api.PlatformObject) (ctrl.Result, error) {
-	if !hasFinalizer(instance, DefaultFinalizerName) {
+	if !controllerutil.ContainsFinalizer(instance, DefaultFinalizerName) {
 		return ctrl.Result{}, nil
 	}
 
@@ -226,7 +209,7 @@ func (r *Reconciler) finishCleanup(
 	eventType string,
 	message string,
 ) (ctrl.Result, error) {
-	removeFinalizer(instance, DefaultFinalizerName)
+	controllerutil.RemoveFinalizer(instance, DefaultFinalizerName)
 	err := r.client.Update(ctx, instance)
 	if err != nil {
 		return ctrl.Result{}, fmt.Errorf("remove reconciler finalizer: %w", err)
