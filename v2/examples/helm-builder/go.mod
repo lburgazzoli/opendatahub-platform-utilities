@@ -7,7 +7,7 @@ require (
 	github.com/k8s-manifest-kit/renderer-helm v0.4.1-0.20260903122908-65b242c8d564
 	github.com/onsi/gomega v1.43.0
 	k8s.io/apimachinery v0.36.4
-	sigs.k8s.io/controller-runtime v0.23.3
+	sigs.k8s.io/controller-runtime v0.24.1
 )
 
 require (
