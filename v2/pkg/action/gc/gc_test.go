@@ -99,6 +99,9 @@ func TestRunRejectsEmptyDiscoveryBeforeIO(t *testing.T) {
 	g := NewWithT(t)
 
 	_, err := gc.New(gc.StaticDiscovery()).Run(t.Context())
+	g.Expect(err).Should(MatchError(gc.ErrEmptyDiscovery))
+
+	_, err = gc.New(gc.StaticDiscovery(corev1.SchemeGroupVersion.WithKind("ConfigMap"))).Run(t.Context())
 	g.Expect(err).Should(MatchError(gc.ErrRunInputRequired))
 
 	scheme, restMapper := testScheme()
@@ -111,6 +114,17 @@ func TestRunRejectsEmptyDiscoveryBeforeIO(t *testing.T) {
 		Client: kubernetesClient, Owner: owner, Resources: resources.New(nil),
 	})
 	g.Expect(err).Should(MatchError(gc.ErrEmptyDiscovery))
+}
+
+func TestRunValidatesActionBeforeRunInputs(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	action := gc.New(nil)
+
+	_, err := action.Run(t.Context())
+
+	g.Expect(err).Should(MatchError(gc.ErrTypeDiscoveryRequired))
 }
 
 func TestRunRejectsUnscopedSelectorBeforeListing(t *testing.T) {

@@ -93,12 +93,12 @@ func (a *Action) Validate() error {
 
 // Run discovers, lists, and deletes stale resources for the supplied owner.
 func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
-	runOptions, err := resolveRunOptions(values...)
-	if err != nil {
+	if err := a.Validate(); err != nil {
 		return Result{}, err
 	}
 
-	if err := a.Validate(); err != nil {
+	runOptions, err := resolveRunOptions(values...)
+	if err != nil {
 		return Result{}, err
 	}
 
