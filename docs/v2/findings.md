@@ -124,35 +124,36 @@ verified against [`v2.md`](v2.md),
   that matches their own desired-resource semantics. No generic GC-ordering
   remediation belongs in T18.
 
-### F-007 — Dynamic registrations targeting one GVK are not aggregated
+### F-007 — Conditional explicit registrations are deduplicated as one watch
 
 - Severity: high
 - Status: accepted for T18 remediation
 - Owner: T18 implementation agent (`luna-high`)
-- Evidence: `dynamicwatcher.Registration` carries an event handler and
-  predicates, but [`dynamicwatcher.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher/dynamicwatcher.go:189)
+- Evidence: conditional `Watches` and `Owns` registrations are converted to
+  `dynamicwatcher.Registration` values, but
+  [`dynamicwatcher.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher/dynamicwatcher.go:189)
   keys every configured registration only by `{GVK, routeConfigured}` and
   discards later inputs after the first source is installed.
-- Impact: two conditional `Watches` registrations, or a `Watches` and `Owns`
-  registration, for the same GVK do not produce two independent sources or a
-  combined source. Only the first active handler and predicate set is
-  installed, silently changing reconciliation routing.
-- Current-implementation comparison: the pre-v2 dynamic ownership action
-  intentionally deduplicated framework-managed watches by `{GVK, owned}`,
-  preserving separate owned and unmanaged routes. Static programmatic
-  `Watches` and `Owns` registrations were passed individually to
-  controller-runtime, so same-GVK registrations did not overwrite each
-  other. The v2 regression is specific to conditional programmatic
-  registrations sharing the dynamic watcher without per-GVK input
-  aggregation.
-- Remediation: group programmatic registrations by GVK, append each one as a
-  `watchInput` containing its handler, predicates, and activation state, and
-  install one source per GVK. The source must fan out events to the active
-  inputs while preserving each input's handler and predicate semantics.
-  `watchKey` should identify the installed GVK source, not each input; retain
-  a route component only where framework-managed routes remain semantically
-  distinct. Add tests proving one source, multiple inputs, independent
-  predicates, and idempotent repeated synchronization.
+- Impact: two conditional `Watches` registrations, or a conditional `Watches`
+  and `Owns` registration, for the same GVK do not retain the normal
+  controller-runtime behavior of independent watch inputs. Only the first
+  active handler and predicate set is installed, silently changing
+  reconciliation routing.
+- Current-implementation comparison: explicit non-conditional `Watches` and
+  `Owns` registrations are passed individually to controller-runtime. The
+  pre-v2 dynamic ownership action separately deduplicated only its
+  framework-generated watches by `{GVK, owned}`, preserving owned and
+  unmanaged routes. The v2 regression is specific to conditional explicit
+  registrations being routed through the framework-generated dynamic-watch
+  deduplication path.
+- Remediation: retain each explicit registration as a `watchInput` and
+  register it individually when its dynamic condition becomes true. Give
+  conditional explicit inputs a stable identity for idempotence. Keep
+  framework-generated dynamic ownership watches deduplicated by their
+  `watchKey` (GVK plus the required ownership route); do not use that key to
+  collapse explicit `Watches` or `Owns` inputs. Add tests for same-GVK static
+  and conditional explicit registrations, repeated synchronization, and
+  separate owned/unmanaged framework-generated routes.
 
 ### F-008 — Capped cleanup requeues omit the cleanup diagnostic event
 
