@@ -126,34 +126,29 @@ verified against [`v2.md`](v2.md),
 
 ### F-007 — Conditional explicit registrations are deduplicated as one watch
 
-- Severity: high
-- Status: accepted for T18 remediation
-- Owner: T18 implementation agent (`luna-high`)
+- Severity: review correction
+- Status: rejected after comparison with the current framework
+- Owner: none
 - Evidence: conditional `Watches` and `Owns` registrations are converted to
   `dynamicwatcher.Registration` values, but
   [`dynamicwatcher.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher/dynamicwatcher.go:189)
   keys every configured registration only by `{GVK, routeConfigured}` and
   discards later inputs after the first source is installed.
-- Impact: two conditional `Watches` registrations, or a conditional `Watches`
-  and `Owns` registration, for the same GVK do not retain the normal
-  controller-runtime behavior of independent watch inputs. Only the first
-  active handler and predicate set is installed, silently changing
-  reconciliation routing.
-- Current-implementation comparison: explicit non-conditional `Watches` and
-  `Owns` registrations are passed individually to controller-runtime. The
-  pre-v2 dynamic ownership action separately deduplicated only its
-  framework-generated watches by `{GVK, owned}`, preserving owned and
-  unmanaged routes. The v2 regression is specific to conditional explicit
-  registrations being routed through the framework-generated dynamic-watch
-  deduplication path.
-- Remediation: retain each explicit registration as a `watchInput` and
-  register it individually when its dynamic condition becomes true. Give
-  conditional explicit inputs a stable identity for idempotence. Keep
-  framework-generated dynamic ownership watches deduplicated by their
-  `watchKey` (GVK plus the required ownership route); do not use that key to
-  collapse explicit `Watches` or `Owns` inputs. Add tests for same-GVK static
-  and conditional explicit registrations, repeated synchronization, and
-  separate owned/unmanaged framework-generated routes.
+- Impact: none in the compatibility contract. The current framework's
+  `dynamicWatchAction` intentionally deduplicates conditional explicit watch
+  inputs by GVK, so the first enabled same-GVK input wins. This is distinct
+  from static `Watches` and `Owns` registrations, which controller-runtime
+  registers individually.
+- Current-implementation comparison: the upstream `main` reconciler stores
+  programmatic registrations as `watchInput` values. Non-dynamic inputs are
+  passed individually to controller-runtime; dynamic inputs are filtered by
+  their predicates and deduplicated by a `map[GroupVersionKind]struct{}`.
+  Framework-generated dynamic ownership remains separately deduplicated by
+  `{GVK, owned}`. The v2 `routeConfigured` key preserves this behavior.
+- Remediation: none. Keep the existing separation between static explicit
+  registrations, conditional explicit registrations, and framework-generated
+  dynamic ownership watches. Tests should lock in the first-enabled same-GVK
+  dynamic input behavior rather than require independent dynamic sources.
 
 ### F-008 — Capped cleanup requeues omit the cleanup diagnostic event
 
@@ -236,7 +231,8 @@ verified against [`v2.md`](v2.md),
 
 - Dynamic watches expose typed and complete-GVK registration, and dynamic
   ownership preserves the established unmanaged and CRD routing. The
-  same-GVK configured-registration collision is recorded separately as F-007.
+  same-GVK configured-registration deduplication is intentional compatibility
+  behavior, not a finding.
 - Dynamic ownership's `"false"` annotation rule is intentional compatibility
   behavior, not a finding.
 - Status persistence uses server-side apply, and deletion keeps deploy and
@@ -253,12 +249,13 @@ verified against [`v2.md`](v2.md),
 
 ## Disposition
 
-Findings F-002 and F-005, and F-007 through F-012 remain accepted for the next
+Findings F-002, F-005, and F-008 through F-012 remain accepted for the next
 task, T18. F-001 is rejected as a review misclassification after confirming
 that typed/unstructured cache coherence is required. F-004 is resolved by the
 master-document correction. F-006 is rejected after confirming that GC
-ordering is controller-author intent rather than framework semantics. The
-historical scenario-catalog concern remains rejected as a v2 code finding.
-T17 does not change production code; T18 owns the accepted remediation and
-regression coverage, followed by the second adversarial/validation pass
-required by the plan.
+ordering is controller-author intent rather than framework semantics. F-007
+is rejected after comparison with the current framework's intentional
+same-GVK dynamic-watch deduplication. The historical scenario-catalog concern
+remains rejected as a v2 code finding. T17 does not change production code;
+T18 owns the accepted remediation and regression coverage, followed by the
+second adversarial/validation pass required by the plan.

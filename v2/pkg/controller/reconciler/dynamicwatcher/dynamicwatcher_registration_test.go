@@ -52,6 +52,49 @@ func TestSyncConfiguredEvaluatesConditionsAndRegistersOnce(t *testing.T) {
 	g.Expect(controllerInstance.AssertExpectations(t)).To(BeTrue())
 }
 
+func TestSyncConfiguredDeduplicatesSameGVKInputs(t *testing.T) {
+	t.Parallel()
+
+	controllerInstance := &mockController{}
+	controllerInstance.On("Watch", mock.Anything).Return(nil).Once()
+	watchGVK := schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Dependency"}
+	watcher := &Watcher{
+		controller: controllerInstance,
+		registered: sets.New[watchKey](),
+		registrations: []Registration{
+			{
+				Object:       resources.GvkToUnstructured(watchGVK),
+				EventHandler: handler.RequestFromObject(),
+				DynamicPredicates: []DynamicPredicate{
+					func(_ context.Context, _ *pipeline.Request) (bool, error) {
+						return true, nil
+					},
+				},
+			},
+			{
+				Object:       resources.GvkToUnstructured(watchGVK),
+				EventHandler: handler.ToNamed("second"),
+				DynamicPredicates: []DynamicPredicate{
+					func(_ context.Context, _ *pipeline.Request) (bool, error) {
+						return true, nil
+					},
+				},
+			},
+		},
+	}
+
+	g := NewWithT(t)
+	request := &pipeline.Request{}
+	g.Expect(watcher.SyncConfigured(t.Context(), request)).Should(Succeed())
+	g.Expect(watcher.SyncConfigured(t.Context(), request)).Should(Succeed())
+
+	g.Expect(watcher.registered.Has(watchKey{
+		gvk:   watchGVK,
+		route: routeConfigured,
+	})).To(BeTrue())
+	g.Expect(controllerInstance.AssertExpectations(t)).To(BeTrue())
+}
+
 func TestSyncConfiguredStopsOnConditionError(t *testing.T) {
 	t.Parallel()
 
