@@ -1,7 +1,6 @@
 package requirements
 
 import (
-	"context"
 	"errors"
 	"fmt"
 
@@ -13,40 +12,6 @@ var (
 	ErrRequestRequired  = errors.New("requirements pipeline request is required")
 	ErrInstanceRequired = errors.New("requirements instance is required")
 )
-
-func (a *RequireAPIsAction) Name() string {
-	if a == nil || a.action == nil {
-		return "require-apis"
-	}
-
-	return a.action.name
-}
-
-func (a *ForbidAPIsAction) Name() string {
-	if a == nil || a.action == nil {
-		return "forbid-apis"
-	}
-
-	return a.action.name
-}
-
-func (a *RequireAPIsAction) Execute(ctx context.Context, request *pipeline.Request) error {
-	values, err := runOptionsFromRequest(request)
-	if err != nil {
-		return err
-	}
-
-	return a.Run(ctx, values...)
-}
-
-func (a *ForbidAPIsAction) Execute(ctx context.Context, request *pipeline.Request) error {
-	values, err := runOptionsFromRequest(request)
-	if err != nil {
-		return err
-	}
-
-	return a.Run(ctx, values...)
-}
 
 func runOptionsFromRequest(request *pipeline.Request) ([]RunOption, error) {
 	if request == nil {
@@ -70,6 +35,3 @@ func runOptionsFromRequest(request *pipeline.Request) ([]RunOption, error) {
 		WithObservedGeneration(request.Instance.GetGeneration()),
 	}, nil
 }
-
-var _ pipeline.Action = (*RequireAPIsAction)(nil)
-var _ pipeline.Action = (*ForbidAPIsAction)(nil)

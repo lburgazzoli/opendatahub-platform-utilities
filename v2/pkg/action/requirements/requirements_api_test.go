@@ -139,13 +139,14 @@ func (a *conditionAccessor) SetConditions(values []api.Condition) {
 	a.conditions = values
 }
 
-func testClient() client.Client {
+func testClient(objects ...client.Object) client.Client {
 	scheme := runtime.NewScheme()
 	_ = corev1.AddToScheme(scheme)
 	restMapper := meta.NewDefaultRESTMapper([]schema.GroupVersion{corev1.SchemeGroupVersion})
 	restMapper.Add(corev1.SchemeGroupVersion.WithKind("ConfigMap"), meta.RESTScopeNamespace)
+	restMapper.Add(corev1.SchemeGroupVersion.WithKind("Namespace"), meta.RESTScopeRoot)
 
-	return fake.NewClientBuilder().WithScheme(scheme).WithRESTMapper(restMapper).Build()
+	return fake.NewClientBuilder().WithScheme(scheme).WithRESTMapper(restMapper).WithObjects(objects...).Build()
 }
 
 //nolint:govet // test fixture layout mirrors the embedded platform object.
