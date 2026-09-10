@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T17, T21–T25 complete; T18–T20 pending**
+Status: **implementation in progress; T00–T18, T21–T25 complete; T19–T20 pending**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -159,7 +159,9 @@ buildable; the v2 runtime must not depend on it.
   composition remains caller-owned.
 - [x] T17 completed the independent `sol-high` adversarial review; findings
   are recorded in [`findings.md`](findings.md) and assigned to T18.
-- [ ] T18 accepted finding remediation and regression coverage completed.
+- [x] T18 accepted finding remediation and regression coverage completed;
+  F-012 also added architecture checks for package placement and dependency
+  boundaries.
 - [x] T25 added object-level `RequireObjects` and `ForbidObjects` actions with
   exact and GVK-level checks, condition updates, terminal errors, and pipeline
   adapters. Focused and full race-tested validation passed.

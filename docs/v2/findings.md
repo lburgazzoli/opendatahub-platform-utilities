@@ -214,18 +214,20 @@ verified against [`v2.md`](v2.md),
 ### F-012 — The architecture test does not enforce several normative boundaries
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: [`v2/internal/architecture/architecture_test.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/internal/architecture/architecture_test.go:188)
-  checks only the kube/resources, platform, pipeline, and legacy-import
-  relationships. It does not assert the other explicit v2 boundaries, such as
-  `pkg/option` independence, `api` behavior restrictions, controller-root
-  shape, renderer placement, or public manager/client removal.
-- Impact: later changes can reintroduce prohibited dependencies while the
-  architecture suite remains green.
-- Remediation: add focused negative fixtures and explicit checks for the
-  remaining normative boundaries, prioritizing the manager/client boundary and
-  public package placement.
+  now checks the kube/resources, platform, pipeline, legacy-import,
+  `pkg/option`, `api`, controller-root, renderer-placement, and
+  manager/client-wiring boundaries. The requirements action's pipeline request
+  adapter was also moved out of `_support.go` into
+  [`requirements_pipeline.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/action/requirements/requirements_pipeline.go),
+  so the source-level rule passes for the complete v2 tree.
+- Impact: later changes now fail the architecture suite when they introduce
+  prohibited dependencies or put implementation files in reserved package
+  locations.
+- Verification: focused architecture and requirements tests pass with
+  `go test ./internal/architecture ./pkg/action/requirements`.
 
 ## Reviewed areas with no accepted finding
 
@@ -249,8 +251,10 @@ verified against [`v2.md`](v2.md),
 
 ## Disposition
 
-Findings F-002, F-005, and F-008 through F-012 remain accepted for the next
-task, T18. F-001 is rejected as a review misclassification after confirming
+Findings F-002, F-005, and F-008 through F-011 remain accepted for the next
+task, T18. F-012 is fixed by the architecture-boundary checks and the
+requirements adapter placement correction. F-001 is rejected as a review
+misclassification after confirming
 that typed/unstructured cache coherence is required. F-004 is resolved by the
 master-document correction. F-006 is rejected after confirming that GC
 ordering is controller-author intent rather than framework semantics. F-007
