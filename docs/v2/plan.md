@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T19, T21–T25 complete; T20 pending**
+Status: **complete; T00–T25 complete**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -172,7 +172,10 @@ buildable; the v2 runtime must not depend on it.
   test targets were run. The root test target reached every module except the
   legacy `flakiness` module, which requires the unavailable Go 1.25.8
   toolchain.
-- [ ] T20 closeout completed.
+- [x] T20 closeout completed. The master proposal remains authoritative at
+  [`v2.md`](v2.md), all accepted review findings are fixed or explicitly
+  classified as resolved/rejected in [`findings.md`](findings.md), and the
+  final validation limitations are recorded above.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
   full v2 race tests, `go vet ./...`, `go mod tidy -diff`, and focused
   controller/resource tests.
