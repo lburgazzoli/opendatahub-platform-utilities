@@ -108,9 +108,9 @@ func (e *Engine) startFailure(
 		deleteErr = errors.Join(deleteErr, ctx.Err())
 	}
 
-	_ = removeTempDir(tempDir)
+	tempErr := e.removeTempDirectory(tempDir)
 
-	return errors.Join(startErr, deleteErr)
+	return errors.Join(startErr, deleteErr, tempErr)
 }
 
 func newProvider(options effectiveOptions) (provider, error) {

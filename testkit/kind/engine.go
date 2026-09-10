@@ -21,8 +21,10 @@ type Engine struct {
 	providerFactory providerFactory
 	cluster         *Cluster
 	tempDir         string
+	pendingTempDir  string
 	options         Options
 	mu              sync.Mutex
+	removeTempDir   func(string) error
 }
 
 // New constructs an engine. Validation and provider detection happen in Start
@@ -31,6 +33,7 @@ func New(options ...Option) *Engine {
 	return &Engine{
 		options:         applyOptions(defaultOptions(), options...),
 		providerFactory: newProvider,
+		removeTempDir:   removeTempDir,
 	}
 }
 
@@ -68,7 +71,7 @@ func (e *Engine) Start(ctx context.Context) (*Cluster, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
-	if e.cluster != nil {
+	if e.cluster != nil || e.pendingTempDir != "" {
 		return nil, ErrAlreadyStarted
 	}
 
@@ -96,9 +99,9 @@ func (e *Engine) Start(ctx context.Context) (*Cluster, error) {
 
 	err = kindProvider.Create(options.Name, createOptions...)
 	if err != nil {
-		_ = removeTempDir(tempDir)
+		tempErr := e.removeTempDir(tempDir)
 
-		return nil, fmt.Errorf("create cluster %q: %w", options.Name, err)
+		return nil, errors.Join(fmt.Errorf("create cluster %q: %w", options.Name, err), tempErr)
 	}
 
 	err = kindProvider.ExportKubeConfig(options.Name, kubeconfigPath, false)
@@ -134,7 +137,7 @@ func (e *Engine) Close(ctx context.Context) error {
 	defer e.mu.Unlock()
 
 	if e.cluster == nil {
-		return nil
+		return e.cleanupPendingTempDir(ctx)
 	}
 
 	err := ctx.Err()
@@ -145,15 +148,61 @@ func (e *Engine) Close(ctx context.Context) error {
 	cluster := e.cluster
 	kindProvider := e.provider
 	tempDir := e.tempDir
-	e.cluster = nil
-	e.provider = nil
-	e.tempDir = ""
 
 	if e.keepCluster() {
 		return nil
 	}
 
 	deleteErr := kindProvider.Delete(cluster.name, cluster.kubeconfigPath)
+	tempErr := e.removeTempDirectory(tempDir)
+	if tempErr == nil {
+		e.tempDir = ""
+	}
 
-	return errors.Join(deleteErr, removeTempDir(tempDir))
+	if deleteErr == nil {
+		e.cluster = nil
+		e.provider = nil
+		e.tempDir = ""
+	}
+
+	return errors.Join(deleteErr, tempErr)
+}
+
+func (e *Engine) cleanupPendingTempDir(ctx context.Context) error {
+	if e.pendingTempDir == "" {
+		return nil
+	}
+
+	err := ctx.Err()
+	if err != nil {
+		return err
+	}
+
+	err = e.removeTempDirectory(e.pendingTempDir)
+	if err != nil {
+		return err
+	}
+
+	e.pendingTempDir = ""
+
+	return nil
+}
+
+func (e *Engine) removeTempDirectory(path string) error {
+	if path == "" {
+		e.pendingTempDir = ""
+
+		return nil
+	}
+
+	err := e.removeTempDir(path)
+	if err != nil {
+		e.pendingTempDir = path
+
+		return err
+	}
+
+	e.pendingTempDir = ""
+
+	return nil
 }

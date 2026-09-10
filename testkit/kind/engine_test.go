@@ -1,6 +1,7 @@
 package kind
 
 import (
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -8,6 +9,11 @@ import (
 	. "github.com/onsi/gomega"
 	"github.com/stretchr/testify/mock"
 	kindcluster "sigs.k8s.io/kind/pkg/cluster"
+)
+
+var (
+	errProviderDelete = errors.New("provider delete failed")             //nolint:gochecknoglobals,err113 // Shared test outcome.
+	errTempCleanup    = errors.New("temporary directory cleanup failed") //nolint:gochecknoglobals,err113 // Shared test outcome.
 )
 
 func TestNewAppliesDefaultsAndOptions(t *testing.T) {
@@ -113,6 +119,85 @@ func TestCloseKeepPreservesCluster(t *testing.T) {
 
 	g := NewWithT(t)
 	g.Expect(engine.Close(t.Context())).Should(Succeed())
+	g.Expect(recorder.AssertExpectations(t)).Should(BeTrue())
+}
+
+func TestCloseRetainsClusterWhenProviderDeletionFails(t *testing.T) {
+	t.Parallel()
+
+	recorder := new(providerMock)
+	recorder.On("Delete", "cluster", "/tmp/kubeconfig").Return(errProviderDelete).Once()
+	recorder.On("Delete", "cluster", "/tmp/kubeconfig").Return(nil).Once()
+
+	engine := New()
+	engine.provider = recorder
+	engine.cluster = &Cluster{name: "cluster", kubeconfigPath: "/tmp/kubeconfig"}
+	engine.removeTempDir = func(string) error { return nil }
+
+	g := NewWithT(t)
+	err := engine.Close(t.Context())
+	g.Expect(err).Should(MatchError(errProviderDelete))
+	g.Expect(engine.cluster).ShouldNot(BeNil())
+
+	g.Expect(engine.Close(t.Context())).Should(Succeed())
+	g.Expect(engine.cluster).Should(BeNil())
+	g.Expect(recorder.AssertExpectations(t)).Should(BeTrue())
+}
+
+func TestCloseRetriesTemporaryDirectoryCleanup(t *testing.T) {
+	t.Parallel()
+
+	recorder := new(providerMock)
+	recorder.On("Delete", "cluster", "/tmp/kubeconfig").Return(nil).Once()
+	cleanupCalls := 0
+
+	engine := New()
+	engine.provider = recorder
+	engine.cluster = &Cluster{name: "cluster", kubeconfigPath: "/tmp/kubeconfig"}
+	engine.tempDir = "/tmp/kind"
+	engine.removeTempDir = func(string) error {
+		cleanupCalls++
+		if cleanupCalls == 1 {
+			return errTempCleanup
+		}
+
+		return nil
+	}
+
+	g := NewWithT(t)
+	err := engine.Close(t.Context())
+	g.Expect(err).Should(MatchError(errTempCleanup))
+	g.Expect(engine.cluster).Should(BeNil())
+	g.Expect(engine.pendingTempDir).Should(Equal("/tmp/kind"))
+
+	g.Expect(engine.Close(t.Context())).Should(Succeed())
+	g.Expect(engine.pendingTempDir).Should(BeEmpty())
+	g.Expect(cleanupCalls).Should(Equal(2))
+	g.Expect(recorder.AssertExpectations(t)).Should(BeTrue())
+}
+
+func TestStartFailurePreservesProviderAndTemporaryDirectoryErrors(t *testing.T) {
+	t.Parallel()
+
+	recorder := new(providerMock)
+	recorder.On("Delete", "partial", "").Return(errProviderDelete).Once()
+	engine := New()
+	engine.removeTempDir = func(string) error { return errTempCleanup }
+	startErr := fmt.Errorf("startup failed: %w", ErrInvalidWait)
+
+	err := engine.startFailure(
+		t.Context(),
+		recorder,
+		effectiveOptions{Name: "partial"},
+		"/tmp/kind",
+		startErr,
+	)
+
+	g := NewWithT(t)
+	g.Expect(err).Should(MatchError(ContainSubstring("startup failed")))
+	g.Expect(errors.Is(err, errProviderDelete)).Should(BeTrue())
+	g.Expect(errors.Is(err, errTempCleanup)).Should(BeTrue())
+	g.Expect(engine.pendingTempDir).Should(Equal("/tmp/kind"))
 	g.Expect(recorder.AssertExpectations(t)).Should(BeTrue())
 }
 
