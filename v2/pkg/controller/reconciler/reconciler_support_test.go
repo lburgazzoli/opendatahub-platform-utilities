@@ -219,7 +219,7 @@ func testScheme() *runtime.Scheme {
 	return scheme
 }
 
-func testClient(object *testObject) client.Client {
+func testClient(object client.Object) client.Client {
 	scheme := testScheme()
 	return fake.NewClientBuilder().
 		WithScheme(scheme).
