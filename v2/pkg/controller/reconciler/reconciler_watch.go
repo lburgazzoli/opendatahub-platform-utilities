@@ -9,7 +9,6 @@ import (
 	platformpredicate "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/predicate"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler/dynamicwatcher"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
-	platformannotations "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/builder"
@@ -170,7 +169,7 @@ func (b *Builder) watchOptions(
 				handler.OnlyControllerOwner(),
 			)
 		} else {
-			configured.EventHandler = platformhandler.AnnotationToNameClusterScoped(platformannotations.InstanceName)
+			configured.EventHandler = platformhandler.AnnotationToNameClusterScoped(b.options.InstanceAnnotation)
 		}
 	}
 
@@ -184,7 +183,10 @@ func (b *Builder) watchOptions(
 	}
 
 	configured.Predicates = []predicate.Predicate{
-		platformpredicate.PartOf(strings.ToLower(instance.GetObjectKind().GroupVersionKind().Kind)),
+		platformpredicate.PartOfWithLabel(
+			b.options.PartOfLabel,
+			strings.ToLower(instance.GetObjectKind().GroupVersionKind().Kind),
+		),
 	}
 	return configured, nil
 }

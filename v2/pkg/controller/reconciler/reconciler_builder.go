@@ -42,6 +42,12 @@ func For(
 	if configured.FinalizerName == "" {
 		configured.FinalizerName = DefaultFinalizerName
 	}
+	if configured.InstanceAnnotation == "" {
+		configured.InstanceAnnotation = DefaultInstanceAnnotation
+	}
+	if configured.PartOfLabel == "" {
+		configured.PartOfLabel = DefaultPartOfLabel
+	}
 
 	return &Builder{
 		manager:   mgr,

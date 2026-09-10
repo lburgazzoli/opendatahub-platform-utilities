@@ -28,5 +28,11 @@ var DefaultDeploymentPredicate = crpredicate.Or(
 // PartOf accepts updates and deletes for resources belonging to one primary
 // kind. It is used by non-owned Watches defaults.
 func PartOf(kind string) crpredicate.Predicate {
-	return crpredicate.And(DefaultPredicate, LabelFor(labels.PlatformPartOf, kind))
+	return PartOfWithLabel(labels.PlatformPartOf, kind)
+}
+
+// PartOfWithLabel accepts updates and deletes for resources carrying the
+// expected primary kind under the supplied label key.
+func PartOfWithLabel(name string, kind string) crpredicate.Predicate {
+	return crpredicate.And(DefaultPredicate, LabelFor(name, kind))
 }

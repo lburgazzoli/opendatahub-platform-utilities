@@ -25,12 +25,14 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 
 	structOptions := defaultOptions()
 	Options{
-		CleanupTimeout:   &zero,
-		FieldOwner:       "status-owner",
-		FinalizerName:    finalizerName,
-		PlatformProfile:  &profile,
-		DynamicOwnership: true,
-		ConditionTypes:   conditionTypes,
+		CleanupTimeout:     &zero,
+		FieldOwner:         "status-owner",
+		FinalizerName:      finalizerName,
+		InstanceAnnotation: DefaultInstanceAnnotation,
+		PartOfLabel:        DefaultPartOfLabel,
+		PlatformProfile:    &profile,
+		DynamicOwnership:   true,
+		ConditionTypes:     conditionTypes,
 	}.ApplyTo(&structOptions)
 
 	functionalOptions := defaultOptions()
@@ -38,6 +40,8 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 		WithCleanupTimeout(0),
 		WithFieldOwner("status-owner"),
 		WithFinalizerName(finalizerName),
+		WithInstanceAnnotation(DefaultInstanceAnnotation),
+		WithPartOfLabel(DefaultPartOfLabel),
 		WithPlatformProfile(profile),
 		WithDynamicOwnership(),
 		WithConditionTypes(api.ConditionType("DependenciesAvailable"), api.ConditionTypeDegraded),
@@ -58,4 +62,16 @@ func TestOptionsStructAndFunctionalOptionPreserveCleanupPresence(t *testing.T) {
 
 	profile.Annotations["example.io/key"] = "changed"
 	g.Expect(structOptions.PlatformProfile.Annotations["example.io/key"]).Should(Equal("value"))
+}
+
+func TestWatchMetadataOptions(t *testing.T) {
+	t.Parallel()
+
+	options := defaultOptions()
+	WithInstanceAnnotation("example.io/instance").ApplyTo(&options)
+	WithPartOfLabel("app.kubernetes.io/part-of").ApplyTo(&options)
+
+	g := NewWithT(t)
+	g.Expect(options.InstanceAnnotation).Should(Equal("example.io/instance"))
+	g.Expect(options.PartOfLabel).Should(Equal("app.kubernetes.io/part-of"))
 }

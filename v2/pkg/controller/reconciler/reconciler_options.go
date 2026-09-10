@@ -7,13 +7,17 @@ import (
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
+	platformannotations "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
+	platformlabels "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	crpredicate "sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 const (
-	defaultCleanupTimeout = 10 * time.Minute
-	DefaultFinalizerName  = "platform.opendatahub.io/finalizer"
+	defaultCleanupTimeout     = 10 * time.Minute
+	DefaultFinalizerName      = "platform.opendatahub.io/finalizer"
+	DefaultInstanceAnnotation = platformannotations.InstanceName
+	DefaultPartOfLabel        = platformlabels.PlatformPartOf
 )
 
 var (
@@ -26,9 +30,11 @@ var (
 
 func defaultOptions() Options {
 	return Options{
-		CleanupTimeout: new(defaultCleanupTimeout),
-		ConditionTypes: []api.ConditionType{api.ConditionTypeProvisioningSucceeded},
-		FinalizerName:  DefaultFinalizerName,
+		CleanupTimeout:     new(defaultCleanupTimeout),
+		ConditionTypes:     []api.ConditionType{api.ConditionTypeProvisioningSucceeded},
+		FinalizerName:      DefaultFinalizerName,
+		InstanceAnnotation: DefaultInstanceAnnotation,
+		PartOfLabel:        DefaultPartOfLabel,
 	}
 }
 
@@ -39,6 +45,8 @@ type Options struct {
 	ControllerName                    string
 	FieldOwner                        string
 	FinalizerName                     string
+	InstanceAnnotation                string
+	PartOfLabel                       string
 	DefaultRequeueAfter               time.Duration
 	DynamicOwnership                  bool
 	CleanupTimeout                    *time.Duration
@@ -57,6 +65,8 @@ func (o Options) ApplyTo(target *Options) {
 	target.ControllerName = o.ControllerName
 	target.FieldOwner = o.FieldOwner
 	target.FinalizerName = o.FinalizerName
+	target.InstanceAnnotation = o.InstanceAnnotation
+	target.PartOfLabel = o.PartOfLabel
 
 	if o.CleanupTimeout != nil {
 		target.CleanupTimeout = new(*o.CleanupTimeout)
@@ -100,6 +110,22 @@ func WithFieldOwner(owner string) Option {
 func WithFinalizerName(name string) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		options.FinalizerName = name
+	})
+}
+
+// WithInstanceAnnotation sets the annotation used to map secondary resources
+// to the reconciled instance for non-owned watches.
+func WithInstanceAnnotation(name string) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.InstanceAnnotation = name
+	})
+}
+
+// WithPartOfLabel sets the label used by the default non-owned watch
+// predicate.
+func WithPartOfLabel(name string) Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.PartOfLabel = name
 	})
 }
 

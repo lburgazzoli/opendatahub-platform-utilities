@@ -48,7 +48,30 @@ func TestHasAnnotation(t *testing.T) {
 
 	g := NewWithT(t)
 	g.Expect(predicate.HasAnnotation("example.io/managed").Create(event.CreateEvent{Object: object})).To(BeTrue())
-	g.Expect(predicate.HasAnnotation("example.io/managed", "false").Create(event.CreateEvent{Object: object})).To(BeFalse())
+	g.Expect(
+		predicate.HasAnnotation("example.io/managed", "false").Create(event.CreateEvent{Object: object}),
+	).To(BeFalse())
+}
+
+func TestPartOfWithLabelUsesConfiguredLabel(t *testing.T) {
+	t.Parallel()
+
+	oldObject := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{
+		Generation: 1,
+		Labels:     map[string]string{"app.kubernetes.io/part-of": "component"},
+	}}
+	newObject := oldObject.DeepCopy()
+	newObject.Generation = 2
+
+	g := NewWithT(t)
+	g.Expect(predicate.PartOfWithLabel("app.kubernetes.io/part-of", "component").Update(event.UpdateEvent{
+		ObjectOld: oldObject,
+		ObjectNew: newObject,
+	})).To(BeTrue())
+	g.Expect(predicate.PartOf("component").Update(event.UpdateEvent{
+		ObjectOld: oldObject,
+		ObjectNew: newObject,
+	})).To(BeFalse())
 }
 
 func TestDependentIgnoresStatusOnlyUpdates(t *testing.T) {
