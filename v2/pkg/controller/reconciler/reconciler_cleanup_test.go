@@ -154,6 +154,30 @@ func TestFinishCleanupSkipsUpdateWhenFinalizerIsAbsent(t *testing.T) {
 	g.Expect(updates).Should(BeZero())
 }
 
+func TestCleanupRequeueEmitsEventWhenDelayIsCapped(t *testing.T) {
+	t.Parallel()
+
+	recorder := record.NewFakeRecorder(1)
+	reconcilerValue := cleanupReconciler(cleanupClient(), pipeline.New())
+	reconcilerValue.recorder = recorder
+
+	deadline := time.Now().Add(time.Minute)
+	outcome := action.NewError("cleanup still progressing").Advisory().WithRequeueAfter(time.Hour)
+
+	result, err := reconcilerValue.cleanupRequeue(
+		t.Context(),
+		deletingObject(time.Now()),
+		outcome,
+		deadline,
+		true,
+	)
+
+	g := NewWithT(t)
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.RequeueAfter).Should(BeNumerically("<", time.Hour))
+	g.Expect(<-recorder.Events).Should(ContainSubstring("Normal Cleanup cleanup still progressing"))
+}
+
 func deletingObject(deletionTime time.Time) *testObject {
 	object := testObjectInstance("component")
 	object.SetFinalizers([]string{DefaultFinalizerName})

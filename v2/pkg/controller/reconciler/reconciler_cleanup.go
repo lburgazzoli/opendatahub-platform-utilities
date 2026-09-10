@@ -79,10 +79,10 @@ func (r *Reconciler) interpretCleanup(
 	case outcome.RequeueAfter() > 0:
 		return r.cleanupRequeue(ctx, instance, outcome, deadline, hasDeadline)
 	case outcome.Err() != nil && outcome.Type() != action.ErrorTypeAdvisory:
-		r.recorder.Event(instance, corev1.EventTypeWarning, cleanupReason, outcome.Error())
+		r.recordCleanupOutcome(instance, outcome)
 		return ctrl.Result{}, outcome.Err()
 	case outcome.Type() == action.ErrorTypeAdvisory:
-		r.recorder.Event(instance, corev1.EventTypeNormal, cleanupReason, outcome.Error())
+		r.recordCleanupOutcome(instance, outcome)
 	}
 
 	return r.finishCleanup(ctx, instance, corev1.EventTypeNormal, "cleanup completed")
@@ -102,22 +102,33 @@ func (r *Reconciler) cleanupRequeue(
 		}
 
 		if outcome.RequeueAfter() > remaining {
+			r.recordCleanupOutcome(instance, outcome)
+
 			return ctrl.Result{RequeueAfter: remaining}, nil
 		}
 	}
 
-	switch outcome.Type() {
-	case action.ErrorTypeAdvisory:
-		if outcome.Err() != nil {
-			r.recorder.Event(instance, corev1.EventTypeNormal, cleanupReason, outcome.Error())
-		}
-	default:
-		if outcome.Err() != nil {
-			r.recorder.Event(instance, corev1.EventTypeWarning, cleanupReason, outcome.Error())
-		}
-	}
+	r.recordCleanupOutcome(instance, outcome)
 
 	return ctrl.Result{RequeueAfter: outcome.RequeueAfter()}, nil
+}
+
+func (r *Reconciler) recordCleanupOutcome(
+	instance api.PlatformObject,
+	outcome action.ActionError,
+) {
+	if outcome.Err() == nil {
+		return
+	}
+
+	switch outcome.Type() {
+	case action.ErrorTypeAdvisory:
+		r.recorder.Event(instance, corev1.EventTypeNormal, cleanupReason, outcome.Error())
+	case action.ErrorTypeNonBlocking:
+		r.recorder.Event(instance, corev1.EventTypeWarning, cleanupReason, outcome.Error())
+	case action.ErrorTypeTerminal:
+		r.recorder.Event(instance, corev1.EventTypeWarning, cleanupReason, outcome.Error())
+	}
 }
 
 func (r *Reconciler) finishCleanup(
