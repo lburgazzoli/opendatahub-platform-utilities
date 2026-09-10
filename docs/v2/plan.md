@@ -1,6 +1,6 @@
 # V2 Implementation Plan
 
-Status: **implementation in progress; T00–T17 and T21–T24 complete; T18–T20 pending**
+Status: **implementation in progress; T00–T17 and T21–T24 complete; T18–T20 and T25 pending**
 
 The canonical design is [`v2.md`](v2.md). Each task in [`tasks/`](tasks/)
 must be executable by an agent starting with clean context. Tasks own
@@ -31,6 +31,7 @@ T00 audit
                  -> T10 GC     ├─ parallel action work
                  -> T11 support┘
                       -> T12 reconciler
+                      -> T25 object requirements
 T08 -> T13 render integration runs in parallel with T09–T12
 T12 + T13 -> T14 consumer migration
 T12 + T13 -> T21 standalone controller examples
@@ -41,7 +42,7 @@ T16 -> T23 OpenShift TLS integration
 T16 -> T24 cluster and distribution discovery
 T22 + T23 + T24 -> T17 adversarial review (sol-high)
 T17 -> T18 remediation (luna-high)
-T18 -> T19 final validation
+T18 + T25 -> T19 final validation
 T19 -> T20 closeout
 ```
 
@@ -65,7 +66,7 @@ buildable; the v2 runtime must not depend on it.
 ## Documentation-pack validation
 
 - [x] Master relocation and relative-link correction checked.
-- [x] All 24 task files exist and have objective, verification, and dependency
+- [x] All task files exist and have objective, verification, and dependency
   sections.
 - [x] Local adversarial pass corrected the renderer-to-pipeline dependency in
   T13 and the task graph.
@@ -159,6 +160,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] T17 completed the independent `sol-high` adversarial review; findings
   are recorded in [`findings.md`](findings.md) and assigned to T18.
 - [ ] T18 accepted finding remediation and regression coverage completed.
+- [ ] T25 object-level requirements implemented and reviewed.
 - [ ] T19 final validation completed.
 - [ ] T20 closeout completed.
 - [x] T12 validation passed: `make -C v2 verify-fmt`, full v2 unit tests,
