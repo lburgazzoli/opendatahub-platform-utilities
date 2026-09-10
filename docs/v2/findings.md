@@ -41,7 +41,7 @@ verified against [`v2.md`](v2.md),
 ### F-002 — GC validates immutable action configuration after invocation validation
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: [`v2/pkg/action/gc/gc.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/action/gc/gc.go:94)
   calls `resolveRunOptions` before `a.Validate()`. Deploy and the observation
@@ -54,6 +54,8 @@ verified against [`v2.md`](v2.md),
 - Remediation: call `a.Validate()` first in `gc.Action.Run`, then resolve run
   inputs, and add a regression test covering invalid action configuration with
   missing invocation inputs.
+- Verification: `go test -race ./pkg/action/gc` passes, including the
+  invalid-configuration precedence regression.
 
 ### F-003 — The v2 module did not use the requested current Helm renderer
 
@@ -93,7 +95,7 @@ verified against [`v2.md`](v2.md),
 ### F-005 — Plain-error precedence can be lost after a later advisory delay
 
 - Severity: high
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: [`v2/pkg/action/error.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/action/error.go:89)
   reconstructs aggregation state from the previous reason, type, and delay,
@@ -107,6 +109,8 @@ verified against [`v2.md`](v2.md),
 - Remediation: preserve plain-error precedence in the accumulator and add a
   sequential regression test for a plain before/main error followed by a
   delayed advisory after action.
+- Verification: `go test -race ./pkg/action` passes, including the sequential
+  precedence regression.
 
 ### F-006 — The Kind integration fixture registers GC as a finally action
 
@@ -153,7 +157,7 @@ verified against [`v2.md`](v2.md),
 ### F-008 — Capped cleanup requeues omit the cleanup diagnostic event
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: [`reconciler.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/pkg/controller/reconciler/reconciler.go:180)
   returns immediately when the requested cleanup delay exceeds the remaining
@@ -164,11 +168,13 @@ verified against [`v2.md`](v2.md),
 - Remediation: compute the capped delay, emit the classifier-appropriate
   cleanup event, and return the capped result. Preserve deadline-expiry
   warning behavior and finalizer semantics.
+- Verification: `go test -race ./pkg/controller/reconciler` passes, including
+  capped-requeue event coverage.
 
 ### F-009 — Cleanup outcome branches lack regression coverage
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: cleanup tests cover installation, successful completion, advisory
   completion, and an already-expired deadline, but do not cover the blocking,
@@ -180,11 +186,14 @@ verified against [`v2.md`](v2.md),
 - Remediation: add table-driven lifecycle tests for each error classifier,
   capped requeues, deadline expiry during execution, update failures, and the
   invariant that deletion never enters normal actions.
+- Verification: `go test -race ./pkg/controller/reconciler` passes with the
+  blocking, non-blocking, delayed, capped, update-failure, and deletion-only
+  lifecycle cases.
 
 ### F-010 — Kind cleanup clears retry state before provider deletion succeeds
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
 - Evidence: [`testkit/kind/engine.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/testkit/kind/engine.go:145)
   clears `cluster`, `provider`, and `tempDir` before calling the provider's
@@ -195,21 +204,25 @@ verified against [`v2.md`](v2.md),
 - Remediation: retain cleanup state until deletion succeeds, track pending
   filesystem cleanup separately, preserve joined errors, and test provider
   and temporary-directory cleanup retries.
+- Verification: `make -C testkit/kind test` passes with provider-delete,
+  temporary-directory, and joined-startup-error retry coverage.
 
 ### F-011 — Kubernetes dependency versions diverge across the v2 workspaces
 
 - Severity: medium
-- Status: accepted for T18 remediation
+- Status: fixed in T18
 - Owner: T18 implementation agent (`luna-high`)
-- Evidence: `v2/go.mod` resolves Kubernetes 0.35.x, while
-  [`v2/examples/helm-builder/go.mod`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/examples/helm-builder/go.mod:5)
-  resolves `k8s.io/apimachinery` 0.36.4 with the same controller-runtime
-  line. Testkit uses another 0.35.x patch set.
-- Impact: standalone and workspace builds exercise different Kubernetes type
-  sets and can produce confusing IDE or compile-time type mismatches for
-  otherwise identical `GroupVersionKind` values.
+- Evidence: the v2, testkit, and Helm example module manifests now declare
+  the same Kubernetes 0.36.x and controller-runtime 0.24.1 dependency line.
+- Impact: the previous manifests exercised different Kubernetes type sets and
+  could produce confusing IDE or compile-time type mismatches for otherwise
+  identical `GroupVersionKind` values.
 - Remediation: align Kubernetes and controller-runtime versions across v2,
   testkit, and examples; validate both workspace mode and `GOWORK=off` mode.
+- Verification: v2, testkit/kind, testkit/integration, and the Helm example
+  declare the aligned Kubernetes/controller-runtime dependency line and their
+  workspace test targets pass. Standalone v2 tidy/test remain subject to the
+  documented local-workspace resolution limitation.
 
 ### F-012 — The architecture test does not enforce several normative boundaries
 
@@ -251,15 +264,13 @@ verified against [`v2.md`](v2.md),
 
 ## Disposition
 
-Findings F-002, F-005, and F-008 through F-011 remain accepted for the next
-task, T18. F-012 is fixed by the architecture-boundary checks and the
-requirements adapter placement correction. F-001 is rejected as a review
-misclassification after confirming
+Findings F-002, F-005, and F-008 through F-012 are fixed in T18. F-001 is
+rejected as a review misclassification after confirming
 that typed/unstructured cache coherence is required. F-004 is resolved by the
 master-document correction. F-006 is rejected after confirming that GC
 ordering is controller-author intent rather than framework semantics. F-007
 is rejected after comparison with the current framework's intentional
 same-GVK dynamic-watch deduplication. The historical scenario-catalog concern
-remains rejected as a v2 code finding. T17 does not change production code;
-T18 owns the accepted remediation and regression coverage, followed by the
+remains rejected as a v2 code finding. T17 did not change production code;
+T18 owns the completed remediation and regression coverage, followed by the
 second adversarial/validation pass required by the plan.
