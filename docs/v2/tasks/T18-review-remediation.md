@@ -12,6 +12,9 @@ Read and follow [`../development.md`](../development.md) before starting.
 
 - Implement only accepted findings and their directly required regression
   tests.
+- The accepted findings are F-002, F-005, and F-007 through F-012. F-006 is
+  explicitly rejected: GC ordering is controller-author intent, not framework
+  semantics.
 - Do not broaden scope or silently reject findings to make validation pass.
 - Update `findings.md` with the fix and verification evidence.
 

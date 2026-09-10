@@ -110,20 +110,19 @@ verified against [`v2.md`](v2.md),
 
 ### F-006 — The Kind integration fixture registers GC as a finally action
 
-- Severity: high
-- Status: accepted for T18 remediation
-- Owner: T18 implementation agent (`luna-high`)
+- Severity: review correction
+- Status: rejected after owner clarification
+- Owner: none
 - Evidence: [`v2/test/integration/integration_support_test.go`](/Users/luca-rh/work/dev/openshift-ai/odh-platform-utilities/v2/test/integration/integration_support_test.go:110)
-  registers GC with `WithAfterAction`. After actions run after render or
-  deploy failures, while the master design requires GC to be the last desired-
-  resource-producing main action and not to run on an incomplete resource
-  snapshot (`v2.md`, lines 1633–1638 and 3100–3103).
-- Impact: a render or deploy failure can leave an empty or incomplete desired
-  set and still invoke GC, allowing valid managed resources to be classified
-  as stale and deleted. The acceptance fixture teaches unsafe pipeline
-  ordering.
-- Remediation: register GC with `WithAction` after deploy, and add a test that
-  a blocking render/deploy failure prevents GC from running.
+  registers GC with `WithAfterAction`. This is an explicit composition choice
+  in the integration fixture, not a framework-inferred ordering.
+- Impact: none in the framework contract. Action ordering and the rules for
+  when GC is safe are controller-author intent; the pipeline preserves the
+  configured phase and registration order and does not identify, reorder, or
+  special-case GC.
+- Follow-up: controllers using desired-set GC should choose and test an order
+  that matches their own desired-resource semantics. No generic GC-ordering
+  remediation belongs in T18.
 
 ### F-007 — Conditional registrations targeting one GVK collapse into one watch
 
@@ -239,10 +238,12 @@ verified against [`v2.md`](v2.md),
 
 ## Disposition
 
-Findings F-002 and F-005 through F-012 remain accepted for the next task,
-T18. F-001 is rejected as a review misclassification after confirming that
-typed/unstructured cache coherence is required. F-004 is resolved by the
-master-document correction. The historical scenario-catalog concern remains
-rejected as a v2 code finding. T17 does not change production code; T18 owns
-the accepted remediation and regression coverage, followed by the second
-adversarial/validation pass required by the plan.
+Findings F-002 and F-005, and F-007 through F-012 remain accepted for the next
+task, T18. F-001 is rejected as a review misclassification after confirming
+that typed/unstructured cache coherence is required. F-004 is resolved by the
+master-document correction. F-006 is rejected after confirming that GC
+ordering is controller-author intent rather than framework semantics. The
+historical scenario-catalog concern remains rejected as a v2 code finding.
+T17 does not change production code; T18 owns the accepted remediation and
+regression coverage, followed by the second adversarial/validation pass
+required by the plan.
