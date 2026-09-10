@@ -21,6 +21,7 @@ type ActionError struct {
 	reason       error
 	errorType    ErrorType
 	requeueAfter time.Duration
+	plainError   bool
 }
 
 func NewError(message string) ActionError {
@@ -87,9 +88,10 @@ func (e ActionError) Add(actionName string, returned error) (ActionError, bool) 
 	}
 
 	state := aggregation{
-		reason: e.reason,
-		typeOf: e.errorType,
-		delay:  e.requeueAfter,
+		reason:     e.reason,
+		typeOf:     e.errorType,
+		delay:      e.requeueAfter,
+		plainError: e.plainError,
 	}
 	visitError(returned, returned, actionName, &state)
 
@@ -102,12 +104,19 @@ func (e ActionError) Add(actionName string, returned error) (ActionError, bool) 
 			reason:       errors.Join(state.reason, errors.Join(state.diagnostics...), state.terminal),
 			errorType:    ErrorTypeTerminal,
 			requeueAfter: state.terminalDelay,
+			plainError:   state.plainError,
 		}, true
+	}
+
+	delay := earliestDelay(state.delay, state.requestedDelay)
+	if state.plainError {
+		delay = 0
 	}
 
 	return ActionError{
 		reason:       errors.Join(state.reason, errors.Join(state.diagnostics...)),
 		errorType:    moreSevere(state.typeOf, state.nonTerminalType),
-		requeueAfter: earliestDelay(state.delay, state.requestedDelay),
+		requeueAfter: delay,
+		plainError:   state.plainError,
 	}, false
 }

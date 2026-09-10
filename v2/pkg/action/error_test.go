@@ -98,3 +98,22 @@ func TestActionErrorAddClassifiesAndAggregatesErrorTrees(t *testing.T) {
 		})
 	}
 }
+
+func TestActionErrorPlainFailureKeepsPrecedenceOverLaterAdvisoryDelay(t *testing.T) {
+	t.Parallel()
+
+	first, stopped := (action.ActionError{}).Add("before", errPlain)
+
+	g := NewWithT(t)
+	g.Expect(stopped).Should(BeTrue())
+
+	result, stopped := first.Add(
+		"after",
+		action.NewError("still progressing").Advisory().WithRequeueAfter(time.Minute),
+	)
+
+	g.Expect(stopped).Should(BeFalse())
+	g.Expect(result.Type()).Should(Equal(action.ErrorTypeTerminal))
+	g.Expect(result.RequeueAfter()).Should(BeZero())
+	g.Expect(result).Should(MatchError(ContainSubstring("plain failure")))
+}

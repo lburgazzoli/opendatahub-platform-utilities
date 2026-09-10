@@ -16,6 +16,7 @@ type aggregation struct {
 	nonTerminalType  ErrorType
 	terminalExplicit bool
 	plainTerminal    bool
+	plainError       bool
 }
 
 func visitError(value error, reported error, actionName string, state *aggregation) {
@@ -65,6 +66,7 @@ func handleSemanticError(semantic ActionError, actionName string, value error, s
 func setTerminal(reason error, delay time.Duration, explicit bool, state *aggregation) {
 	if !explicit {
 		state.plainTerminal = true
+		state.plainError = true
 	}
 
 	switch {
