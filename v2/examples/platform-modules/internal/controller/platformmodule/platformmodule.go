@@ -57,7 +57,10 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 		writer:    manager.GetClient(),
 		image:     image,
 	}
-	r := reconciler.For(manager, v1alpha1.NewPlatformModule(), reconciler.WithCleanupTimeout(0))
+	r := reconciler.For(manager, v1alpha1.NewPlatformModule(),
+		reconciler.WithCleanupTimeout(0),
+		reconciler.WithExcludedOwnershipTypes(gvk.CustomResourceDefinition),
+	).WithDynamicOwnership()
 
 	moduleNames := registry.Names()
 	for _, name := range moduleNames {
@@ -95,7 +98,6 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 	}
 
 	return r.
-		OwnsGVK(gvk.Deployment).
 		WatchesGVK(gvk.CustomResourceDefinition,
 			reconciler.WithEventMapper(allModuleRequests(moduleNames)),
 			reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),

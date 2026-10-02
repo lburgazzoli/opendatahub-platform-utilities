@@ -347,3 +347,10 @@ buildable; the v2 runtime must not depend on it.
   checks use one ordered switch. The example's formatter, race tests, and vet
   passed. The pinned linter passed with `funlen` disabled because of an unrelated
   uncommitted PlatformModule setup edit.
+- [x] Enabled framework-managed dynamic ownership for PlatformModule chart
+  resources. The fixed Deployment ownership watch was removed; the configured
+  module CR and shared CRD watches remain. The Platform Kind test proved that
+  deleting a module Deployment causes a replacement to become available.
+  Formatter, race tests, vet, e2e compilation, and the Kind test passed.
+  Full lint remains blocked by existing setup `funlen` and `noinlineerr`
+  findings; lint passed with those checks disabled.

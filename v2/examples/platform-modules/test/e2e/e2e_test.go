@@ -112,6 +112,7 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 
 	waitForModuleControllers(t, kubeClient, registry, image, "kserve")
 	assertPlatformTracksModuleStatus(t, kubeClient)
+	assertModuleDeploymentRecreated(t, kubeClient)
 
 	kserve := new(kservev1alpha1.Kserve)
 	kserve.Name = v1alpha1.InstanceName
@@ -138,6 +139,27 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	waitForModuleHealth(t, kubeClient, true, "")
 
 	removeSelectedModule(t, kubeClient, instance, kserve, registry)
+}
+
+func assertModuleDeploymentRecreated(t *testing.T, kubeClient client.Client) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	deploymentKey := types.NamespacedName{
+		Name:      "example-kserve",
+		Namespace: "opendatahub-kserve-system",
+	}
+	deployment := new(appsv1.Deployment)
+	g.Expect(kubeClient.Get(t.Context(), deploymentKey, deployment)).To(gomega.Succeed())
+	previousUID := deployment.UID
+	g.Expect(kubeClient.Delete(t.Context(), deployment)).To(gomega.Succeed())
+
+	g.Eventually(func(g gomega.Gomega) {
+		current := new(appsv1.Deployment)
+		g.Expect(kubeClient.Get(t.Context(), deploymentKey, current)).To(gomega.Succeed())
+		g.Expect(current.UID).NotTo(gomega.Equal(previousUID))
+		g.Expect(current.Status.AvailableReplicas).To(gomega.Equal(int32(1)))
+	}).WithContext(t.Context()).WithTimeout(3 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
 }
 
 func assertPlatformTracksModuleStatus(t *testing.T, kubeClient client.Client) {
