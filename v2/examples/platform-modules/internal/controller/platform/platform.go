@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
@@ -13,11 +14,13 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 var (
@@ -37,11 +40,16 @@ func Setup(manager manager.Manager, registry *modules.Registry) error {
 
 	controller := &PlatformController{registry: registry}
 
-	return reconciler.For(manager, v1alpha1.NewPlatform()).
-		Owns(v1alpha1.NewPlatformModule()).
+	return reconciler.For(manager, v1alpha1.NewPlatform(),
+		reconciler.WithConditionTypes(v1alpha1.ConditionModulesReady),
+	).
+		Owns(v1alpha1.NewPlatformModule(),
+			reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		WithActionFunc(controller.render).
 		WithAction(deploy.New()).
 		WithActionFunc(controller.pruneModules).
+		WithActionFunc(controller.updateStatus).
 		Build()
 }
 
@@ -101,6 +109,53 @@ func (c *PlatformController) pruneModules(ctx context.Context, request *pipeline
 			return fmt.Errorf("delete PlatformModule %q: %w", module.Name, err)
 		}
 	}
+
+	return nil
+}
+
+func (c *PlatformController) updateStatus(ctx context.Context, request *pipeline.Request) error {
+	platform, err := reconciler.Instance[*v1alpha1.Platform](request)
+	if err != nil {
+		return fmt.Errorf("get Platform for status: %w", err)
+	}
+
+	moduleList := new(v1alpha1.PlatformModuleList)
+	err = request.Client.List(ctx, moduleList)
+	if err != nil {
+		return fmt.Errorf("list PlatformModules for status: %w", err)
+	}
+
+	missing := sets.New(platform.Spec.Modules...)
+	notReady := sets.New[string]()
+	for index := range moduleList.Items {
+		module := &moduleList.Items[index]
+		if !missing.Has(module.Name) {
+			continue
+		}
+
+		missing.Delete(module.Name)
+		if !module.DeletionTimestamp.IsZero() ||
+			module.Status.ObservedGeneration != module.Generation ||
+			!condition.IsTrue(module.GetStatus(), string(platformapi.ConditionTypeReady)) {
+			notReady.Insert(module.Name)
+		}
+	}
+
+	notReady.Insert(missing.UnsortedList()...)
+	if len(notReady) > 0 {
+		condition.MarkFalse(platform.GetStatus(), string(v1alpha1.ConditionModulesReady),
+			condition.WithReason("ModulesNotReady"),
+			condition.WithMessagef("modules not ready: %s", strings.Join(sets.List(notReady), ", ")),
+			condition.WithObservedGeneration(platform.Generation),
+		)
+
+		return nil
+	}
+
+	condition.MarkTrue(platform.GetStatus(), string(v1alpha1.ConditionModulesReady),
+		condition.WithReason("AllModulesReady"),
+		condition.WithObservedGeneration(platform.Generation),
+	)
 
 	return nil
 }

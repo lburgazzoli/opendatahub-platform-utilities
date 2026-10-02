@@ -18,6 +18,9 @@ var (
 const (
 	PlatformName = "default-platform"
 	InstanceName = "cluster"
+
+	// ConditionModulesReady reports whether every selected PlatformModule is ready.
+	ConditionModulesReady platformapi.ConditionType = "ModulesReady"
 )
 
 type ControllerStatus struct {

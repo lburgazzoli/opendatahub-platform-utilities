@@ -16,7 +16,19 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+func allModuleRequests(names []string) func(context.Context, client.Object) []reconcile.Request {
+	return func(_ context.Context, _ client.Object) []reconcile.Request {
+		requests := make([]reconcile.Request, 0, len(names))
+		for _, name := range names {
+			requests = append(requests, reconcile.Request{NamespacedName: types.NamespacedName{Name: name}})
+		}
+
+		return requests
+	}
+}
 
 func moduleNamespace(name string) string {
 	return "opendatahub-" + name + "-system"

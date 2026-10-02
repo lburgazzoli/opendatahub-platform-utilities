@@ -15,15 +15,18 @@ import (
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
+	platformhandler "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/handler"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
+	platformpredicate "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/predicate"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
-	appsv1 "k8s.io/api/apps/v1"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
+	"sigs.k8s.io/controller-runtime/pkg/predicate"
 )
 
 var (
@@ -54,8 +57,15 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 		writer:    manager.GetClient(),
 		image:     image,
 	}
-	for _, name := range registry.Names() {
-		definition, _ := registry.Get(name)
+	r := reconciler.For(manager, v1alpha1.NewPlatformModule(), reconciler.WithCleanupTimeout(0))
+
+	moduleNames := registry.Names()
+	for _, name := range moduleNames {
+		definition, found := registry.Get(name)
+		if !found {
+			return fmt.Errorf("%w: %q is missing from registry", ErrUnknownModule, name)
+		}
+
 		namespace := moduleNamespace(name)
 		if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
 			return fmt.Errorf("%w: namespace %q: %v", ErrInvalidConfig, namespace, errs)
@@ -76,10 +86,20 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 		}
 
 		controller.renderers[name] = renderer
+
+		r.WatchesGVK(definition.GVK(),
+			reconciler.WithEventHandler(platformhandler.ToNamed(name)),
+			reconciler.WithPredicates(platformpredicate.CreatedOrUpdatedOrDeletedNamed(definition.Config.Spec.ModuleRef.Name)),
+			reconciler.Dynamic(reconciler.CrdExists(definition.GVK())),
+		)
 	}
 
-	return reconciler.For(manager, v1alpha1.NewPlatformModule(), reconciler.WithCleanupTimeout(0)).
-		Owns(new(appsv1.Deployment)).
+	return r.
+		OwnsGVK(gvk.Deployment).
+		WatchesGVK(gvk.CustomResourceDefinition,
+			reconciler.WithEventMapper(allModuleRequests(moduleNames)),
+			reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+		).
 		WithActionFunc(controller.render).
 		WithAction(deploy.New()).
 		WithActionFunc(controller.pruneOrphans).

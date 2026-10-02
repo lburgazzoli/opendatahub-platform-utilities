@@ -337,3 +337,8 @@ buildable; the v2 runtime must not depend on it.
   on reconciliation. Removed its generic GC action. Unit tests, formatter,
   vet, pinned linter, and both Podman Kind scenarios passed, including the
   PlatformModule deletion and finalizer lifecycle.
+- [x] Added the Platform `ModulesReady` condition from selected PlatformModule
+  status and included it in Platform `Ready` aggregation. PlatformModule now
+  watches CRDs from startup and conditionally watches each configured module
+  CR after its API appears. The example's race tests, vet, formatter, e2e
+  compilation, pinned linter, and both Podman Kind scenarios passed.

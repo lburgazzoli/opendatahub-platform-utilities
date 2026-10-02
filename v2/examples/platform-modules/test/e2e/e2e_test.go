@@ -111,6 +111,7 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	g.Expect(kubeClient.Create(t.Context(), instance)).To(gomega.Succeed())
 
 	waitForModuleControllers(t, kubeClient, registry, image, "kserve")
+	assertPlatformTracksModuleStatus(t, kubeClient)
 
 	kserve := new(kservev1alpha1.Kserve)
 	kserve.Name = v1alpha1.InstanceName
@@ -137,6 +138,43 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	waitForModuleHealth(t, kubeClient, true, "")
 
 	removeSelectedModule(t, kubeClient, instance, kserve, registry)
+}
+
+func assertPlatformTracksModuleStatus(t *testing.T, kubeClient client.Client) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	waitForPlatformReady(t, kubeClient, true)
+
+	module := v1alpha1.NewPlatformModule()
+	module.Name = "kserve"
+	g.Expect(kubeClient.Get(t.Context(), client.ObjectKeyFromObject(module), module)).To(gomega.Succeed())
+	condition.MarkFalse(module.GetStatus(), string(platformapi.ConditionTypeReady),
+		condition.WithReason("SimulatedFailure"),
+	)
+	g.Expect(kubeClient.Status().Update(t.Context(), module)).To(gomega.Succeed())
+	waitForPlatformReady(t, kubeClient, false)
+
+	g.Expect(kubeClient.Get(t.Context(), client.ObjectKeyFromObject(module), module)).To(gomega.Succeed())
+	condition.MarkTrue(module.GetStatus(), string(platformapi.ConditionTypeReady),
+		condition.WithReason("Recovered"),
+	)
+	g.Expect(kubeClient.Status().Update(t.Context(), module)).To(gomega.Succeed())
+	waitForPlatformReady(t, kubeClient, true)
+}
+
+func waitForPlatformReady(t *testing.T, kubeClient client.Client, ready bool) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	g.Eventually(func(g gomega.Gomega) {
+		platform := v1alpha1.NewPlatform()
+		platform.Name = v1alpha1.PlatformName
+		g.Expect(kubeClient.Get(t.Context(), client.ObjectKeyFromObject(platform), platform)).To(gomega.Succeed())
+		g.Expect(condition.IsTrue(platform.GetStatus(), string(v1alpha1.ConditionModulesReady))).To(gomega.Equal(ready))
+		g.Expect(condition.IsTrue(platform.GetStatus(), string(platformapi.ConditionTypeReady))).To(gomega.Equal(ready))
+		g.Expect(platform.Status.ObservedGeneration).To(gomega.Equal(platform.Generation))
+	}).WithContext(t.Context()).WithTimeout(2 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
 }
 
 func removeSelectedModule(
