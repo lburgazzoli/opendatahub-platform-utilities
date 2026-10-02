@@ -17,6 +17,9 @@ var (
 // List is an ordered collection of Kubernetes objects.
 type List []unstructured.Unstructured
 
+// SortFunc orders a resource list in place.
+type SortFunc func(List)
+
 // Predicate selects borrowed objects for collection operations.
 type Predicate func(*unstructured.Unstructured) bool
 

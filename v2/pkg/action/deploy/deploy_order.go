@@ -11,9 +11,6 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
-// SortFunc orders desired objects before deployment in place.
-type SortFunc func(resources.List)
-
 const defaultApplyRank = 60
 
 //nolint:gochecknoglobals // The rank table is immutable package configuration.

@@ -237,3 +237,7 @@ buildable; the v2 runtime must not depend on it.
   are the caller's responsibility; the extra copy and deferred publication were
   removed. The v2 race suite, vet, and formatting checks passed; the pinned
   formatter and linter remained blocked by `proxy.golang.org` DNS.
+- [x] Moved the resource-list sorting function type to `pkg/kube/resources` so
+  deploy options use the collection's canonical `resources.SortFunc`. The v2
+  race suite, vet, and formatting checks passed; the pinned formatter and
+  linter remained blocked by `proxy.golang.org` DNS.

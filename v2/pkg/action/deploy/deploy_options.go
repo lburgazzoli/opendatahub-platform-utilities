@@ -8,6 +8,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 	platformmetadata "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
@@ -30,7 +31,7 @@ type Options struct {
 	FieldOwner      FieldOwnerFunc
 	Labels          map[string]string
 	Annotations     map[string]string
-	Sort            SortFunc
+	Sort            resources.SortFunc
 	// Cache is enabled by default. A nil value in a complete Options value
 	// leaves the default unchanged; Disabled explicitly turns it off.
 	Cache                *CacheOptions
@@ -143,7 +144,7 @@ func WithAnnotations(values map[string]string) Option {
 }
 
 // WithSort replaces the apply-order strategy. A nil sorter is ignored.
-func WithSort(sort SortFunc) Option {
+func WithSort(sort resources.SortFunc) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		if sort != nil {
 			options.Sort = sort
