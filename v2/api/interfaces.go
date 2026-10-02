@@ -7,7 +7,7 @@ type StatusAccessor interface {
 	GetStatus() *Status
 }
 
-// ConditionsAccessor is an opt-in condition capability.
+// ConditionsAccessor provides condition access. Status implements this interface.
 type ConditionsAccessor interface {
 	GetConditions() []Condition
 	SetConditions(conditions []Condition)

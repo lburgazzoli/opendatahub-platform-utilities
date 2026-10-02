@@ -100,7 +100,7 @@ func TestExecuteStoresDeploymentCondition(t *testing.T) {
 	})
 
 	g.Expect(err).ShouldNot(HaveOccurred())
-	g.Expect(condition.IsTrue(instance, deployment.DefaultConditionType)).Should(BeTrue())
+	g.Expect(condition.IsTrue(instance.GetStatus(), deployment.DefaultConditionType)).Should(BeTrue())
 }
 
 type conditionAccessor struct{ conditions []api.Condition }
@@ -112,9 +112,8 @@ func (a *conditionAccessor) SetConditions(values []api.Condition) { a.conditions
 type platformObject struct {
 	corev1.ConfigMap
 
-	status     api.Status
-	conditions []api.Condition
-	releases   api.ReleaseStatus
+	status   api.Status
+	releases api.ReleaseStatus
 }
 
 func (o *platformObject) GetStatus() *api.Status { return &o.status }
@@ -123,12 +122,6 @@ func (o *platformObject) GetReleaseStatus() *api.ReleaseStatus { return &o.relea
 
 func (o *platformObject) SetReleaseStatus(value api.ReleaseStatus) {
 	o.releases = value
-}
-
-func (o *platformObject) GetConditions() []api.Condition { return o.conditions }
-
-func (o *platformObject) SetConditions(values []api.Condition) {
-	o.conditions = values
 }
 
 var _ api.PlatformObject = (*platformObject)(nil)

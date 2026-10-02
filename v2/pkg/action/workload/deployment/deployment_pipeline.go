@@ -3,9 +3,7 @@ package deployment
 import (
 	"context"
 	"errors"
-	"fmt"
 
-	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 )
@@ -27,9 +25,9 @@ func (a *Action) Execute(ctx context.Context, request *pipeline.Request) error {
 		return ErrInstanceRequired
 	}
 
-	conditions, ok := request.Instance.(api.ConditionsAccessor)
-	if !ok {
-		return fmt.Errorf("%w: %T", ErrConditionsRequired, request.Instance)
+	conditions := request.Instance.GetStatus()
+	if conditions == nil {
+		return ErrConditionsRequired
 	}
 
 	observation, err := a.Run(ctx, RunOptions{

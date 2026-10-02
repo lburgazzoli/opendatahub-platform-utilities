@@ -77,6 +77,34 @@ func TestReconcileLoadsFreshObjectAndProjectsStatus(t *testing.T) {
 	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKeyFromObject(object), updated)).Should(Succeed())
 }
 
+func TestReconcileRequeuesAfterAddingFinalizer(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	object := testObjectInstance("component")
+	kubernetesClient := testClient(object)
+	reconcilerValue := &Reconciler{
+		client:    kubernetesClient,
+		scheme:    testScheme(),
+		prototype: testObjectInstance("prototype"),
+		pipeline: pipeline.New().WithCleanupAction(pipeline.ActionFunc{
+			ActionName: "cleanup",
+			ExecuteFunc: func(context.Context, *pipeline.Request) error {
+				return nil
+			},
+		}),
+		options: Options{FinalizerName: "example.io/finalizer"},
+	}
+
+	result, err := reconcilerValue.Reconcile(t.Context(), ctrl.Request{NamespacedName: client.ObjectKeyFromObject(object)})
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.RequeueAfter).Should(Equal(time.Second))
+
+	updated := testObjectInstance("component")
+	g.Expect(kubernetesClient.Get(t.Context(), client.ObjectKeyFromObject(object), updated)).Should(Succeed())
+	g.Expect(updated.GetFinalizers()).Should(ContainElement("example.io/finalizer"))
+}
+
 func TestReconcileReturnsSemanticOutcomeAfterStatusApply(t *testing.T) {
 	t.Parallel()
 

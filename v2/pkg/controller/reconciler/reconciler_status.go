@@ -24,37 +24,35 @@ func (r *Reconciler) applyStatus(
 	generation := instance.GetGeneration()
 	status.ObservedGeneration = generation
 
-	if accessor, ok := instance.(api.ConditionsAccessor); ok {
-		switch {
-		case outcome.Err() == nil:
-			condition.MarkTrue(
-				accessor,
-				string(api.ConditionTypeProvisioningSucceeded),
-				condition.WithObservedGeneration(generation),
-			)
-		case outcome.Type() == action.ErrorTypeAdvisory:
-			condition.MarkTrue(
-				accessor,
-				string(api.ConditionTypeProvisioningSucceeded),
-				condition.WithObservedGeneration(generation),
-				condition.WithReason(advisoryReason),
-				condition.WithMessage(outcome.Error()),
-			)
-		default:
-			condition.MarkFalse(
-				accessor,
-				string(api.ConditionTypeProvisioningSucceeded),
-				condition.WithObservedGeneration(generation),
-				condition.WithError(outcome),
-			)
-		}
-
-		condition.Aggregate(
-			accessor,
-			api.ConditionTypeReady,
-			r.options.ConditionTypes...,
+	switch {
+	case outcome.Err() == nil:
+		condition.MarkTrue(
+			status,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
+		)
+	case outcome.Type() == action.ErrorTypeAdvisory:
+		condition.MarkTrue(
+			status,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
+			condition.WithReason(advisoryReason),
+			condition.WithMessage(outcome.Error()),
+		)
+	default:
+		condition.MarkFalse(
+			status,
+			string(api.ConditionTypeProvisioningSucceeded),
+			condition.WithObservedGeneration(generation),
+			condition.WithError(outcome),
 		)
 	}
+
+	condition.Aggregate(
+		status,
+		api.ConditionTypeReady,
+		r.options.ConditionTypes...,
+	)
 
 	if accessor, ok := instance.(api.PhaseStatusAccessor); ok {
 		var phase api.Phase

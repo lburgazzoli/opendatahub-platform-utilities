@@ -1,9 +1,6 @@
 package requirements
 
 import (
-	"fmt"
-
-	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 )
 
@@ -18,9 +15,9 @@ func runOptionsFromRequest(request *pipeline.Request) ([]RunOption, error) {
 		return nil, ErrClientRequired
 	}
 
-	conditions, ok := request.Instance.(api.ConditionsAccessor)
-	if !ok {
-		return nil, fmt.Errorf("%w: %T", ErrConditionsRequired, request.Instance)
+	conditions := request.Instance.GetStatus()
+	if conditions == nil {
+		return nil, ErrConditionsRequired
 	}
 
 	return []RunOption{

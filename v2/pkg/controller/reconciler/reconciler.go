@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"time"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
@@ -79,7 +80,9 @@ func (r *Reconciler) Reconcile(ctx context.Context, request ctrl.Request) (ctrl.
 			return ctrl.Result{}, fmt.Errorf("add reconciler finalizer: %w", err)
 		}
 
-		return ctrl.Result{}, nil
+		// The primary predicate ignores finalizer-only updates. Explicitly
+		// requeue so the normal actions run after the finalizer is persisted.
+		return ctrl.Result{RequeueAfter: time.Second}, nil
 	}
 
 	requestValue := r.request(instance)

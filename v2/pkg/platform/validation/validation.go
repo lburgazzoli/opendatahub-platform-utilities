@@ -27,8 +27,14 @@ func Validate(object api.PlatformObject) error {
 
 func validateRequired(object api.PlatformObject) error {
 	var validationErrors []error
-	if object.GetStatus() == nil {
+	status := object.GetStatus()
+	if status == nil {
 		validationErrors = append(validationErrors, ErrNilStatus)
+	} else {
+		err := validateConditions(status)
+		if err != nil {
+			validationErrors = append(validationErrors, err)
+		}
 	}
 
 	if object.GetReleaseStatus() == nil {
@@ -40,13 +46,6 @@ func validateRequired(object api.PlatformObject) error {
 
 func validateOptional(object api.PlatformObject) error {
 	var validationErrors []error
-
-	if accessor, ok := object.(api.ConditionsAccessor); ok {
-		err := validateConditions(accessor)
-		if err != nil {
-			validationErrors = append(validationErrors, err)
-		}
-	}
 
 	if accessor, ok := object.(api.PhaseStatusAccessor); ok {
 		err := validatePhase(accessor)

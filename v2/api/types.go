@@ -76,6 +76,16 @@ type Status struct {
 	ObservedGeneration int64       `json:"observedGeneration,omitempty"`
 }
 
+// GetConditions returns the conditions stored in the common status block.
+func (s *Status) GetConditions() []Condition {
+	return s.Conditions
+}
+
+// SetConditions replaces the conditions stored in the common status block.
+func (s *Status) SetConditions(conditions []Condition) {
+	s.Conditions = conditions
+}
+
 // ComponentRelease describes software release metadata.
 //
 // +kubebuilder:object:generate=true
