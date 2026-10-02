@@ -109,7 +109,7 @@ func (c *Controller) render(ctx context.Context, request *pipeline.Request) erro
 		},
 	}
 
-	values, err := configuredValues.ToValues()
+	values, err := ToValues(configuredValues)
 	if err != nil {
 		return fmt.Errorf("convert module %q chart values: %w", module.Spec.Module, err)
 	}

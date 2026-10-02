@@ -27,12 +27,12 @@ type ProjectionValues struct {
 	Enabled bool `mapstructure:"enabled"`
 }
 
-// ToValues converts the typed chart values to the renderer's values type.
-func (v ChartValues) ToValues() (manifesttypes.Values, error) {
+// ToValues converts a typed value to the renderer's values type.
+func ToValues(value any) (manifesttypes.Values, error) {
 	values := make(manifesttypes.Values)
-	err := mapstructure.Decode(&v, &values)
+	err := mapstructure.Decode(value, &values)
 	if err != nil {
-		return nil, fmt.Errorf("convert chart values: %w", err)
+		return nil, fmt.Errorf("convert manifest values: %w", err)
 	}
 
 	return values, nil

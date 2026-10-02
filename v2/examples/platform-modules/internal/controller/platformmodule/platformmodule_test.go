@@ -120,7 +120,7 @@ func TestCleanupWaitsForConfiguredModuleCRAndRetainsNamespaceAndCRD(t *testing.T
 	g.Expect(module.Status.Resources[1].Name).To(gomega.Equal(definition.CRDName))
 }
 
-func TestChartValuesToValues(t *testing.T) {
+func TestToValues(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -141,7 +141,7 @@ func TestChartValuesToValues(t *testing.T) {
 		},
 		Projections: ProjectionValues{Enabled: false},
 	}
-	values, err := configured.ToValues()
+	values, err := ToValues(configured)
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(values).To(gomega.Equal(manifesttypes.Values{
 		"module": map[string]any{
@@ -159,7 +159,7 @@ func TestChartValuesToValues(t *testing.T) {
 	}))
 
 	minimal := ChartValues{Module: ModuleValues{ModuleSpec: modules.ModuleSpec{ModuleRef: spec.ModuleRef}}}
-	minimalValues, err := minimal.ToValues()
+	minimalValues, err := ToValues(minimal)
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(minimalValues).To(gomega.Equal(manifesttypes.Values{
 		"module": map[string]any{
@@ -170,6 +170,10 @@ func TestChartValuesToValues(t *testing.T) {
 		},
 		"projections": map[string]any{"enabled": false},
 	}))
+
+	projectionOnly, err := ToValues(ProjectionValues{Enabled: true})
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(projectionOnly).To(gomega.Equal(manifesttypes.Values{"enabled": true}))
 }
 
 func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
@@ -200,7 +204,7 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 			},
 			Projections: ProjectionValues{Enabled: false},
 		}
-		values, err := configuredValues.ToValues()
+		values, err := ToValues(configuredValues)
 		g.Expect(err).To(gomega.Succeed())
 
 		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(values))
