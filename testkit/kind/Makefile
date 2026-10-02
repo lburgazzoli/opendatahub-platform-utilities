@@ -2,6 +2,7 @@ GOLANGCI_LINT_VERSION := v2.12.2
 COVERAGE_FILE ?= cover.out
 
 GOLANGCI_LINT = go run "github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_LINT_VERSION)"
+LINT_FLAGS ?=
 
 # Pin the toolchain to the exact Go version declared in go.mod.
 GO_MOD_VERSION := $(shell awk '/^go /{print $$2; exit}' go.mod)
@@ -22,7 +23,7 @@ vet: ## Run go vet.
 
 .PHONY: lint
 lint: ## Run golangci-lint.
-	$(GOLANGCI_LINT) run
+	$(GOLANGCI_LINT) run $(LINT_FLAGS)
 
 .PHONY: lint-fix
 lint-fix: ## Run golangci-lint with --fix.

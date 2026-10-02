@@ -3,6 +3,7 @@ package kind
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -12,8 +13,8 @@ import (
 )
 
 var (
-	errProviderDelete = errors.New("provider delete failed")             //nolint:gochecknoglobals,err113 // Shared test outcome.
-	errTempCleanup    = errors.New("temporary directory cleanup failed") //nolint:gochecknoglobals,err113 // Shared test outcome.
+	errProviderDelete = errors.New("provider delete failed")
+	errTempCleanup    = errors.New("temporary directory cleanup failed")
 )
 
 func TestNewAppliesDefaultsAndOptions(t *testing.T) {
@@ -25,6 +26,7 @@ func TestNewAppliesDefaultsAndOptions(t *testing.T) {
 		WithWait(3*time.Minute),
 		WithKeep(true),
 		WithDocker(),
+		WithLogsDir("/tmp/kind-logs"),
 	)
 
 	g := NewWithT(t)
@@ -35,6 +37,43 @@ func TestNewAppliesDefaultsAndOptions(t *testing.T) {
 	g.Expect(engine.options.Keep).ShouldNot(BeNil())
 	g.Expect(*engine.options.Keep).Should(BeTrue())
 	g.Expect(engine.options.ProviderOptions).Should(HaveLen(1))
+	g.Expect(engine.options.LogsDir).Should(Equal("/tmp/kind-logs"))
+}
+
+func TestCollectLogsUsesStartedProvider(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	logsDir := t.TempDir()
+	recorder := new(providerMock)
+	recorder.On("CollectLogs", "cluster", logsDir).Return(nil).Once()
+
+	engine := New()
+	engine.provider = recorder
+	engine.cluster = &Cluster{name: "cluster"}
+
+	g.Expect(engine.CollectLogs(logsDir)).To(Succeed())
+	g.Expect(recorder.AssertExpectations(t)).To(BeTrue())
+}
+
+func TestStartupFailureCollectsLogsBeforeDeletion(t *testing.T) {
+	t.Parallel()
+	g := NewWithT(t)
+	logsDir := t.TempDir()
+	recorder := new(providerMock)
+	recorder.On("CollectLogs", "partial", filepath.Join(logsDir, "partial")).Return(nil).Once()
+	recorder.On("Delete", "partial", "").Return(nil).Once()
+
+	engine := New()
+	err := engine.startFailure(
+		t.Context(),
+		recorder,
+		effectiveOptions{Name: "partial", LogsDir: logsDir},
+		"",
+		ErrInvalidWait,
+	)
+
+	g.Expect(err).To(MatchError(ErrInvalidWait))
+	g.Expect(recorder.AssertExpectations(t)).To(BeTrue())
 }
 
 func TestResolvedOptionsUsesProcessScopedDefaultName(t *testing.T) {
@@ -149,6 +188,7 @@ func TestCloseRetriesTemporaryDirectoryCleanup(t *testing.T) {
 
 	recorder := new(providerMock)
 	recorder.On("Delete", "cluster", "/tmp/kubeconfig").Return(nil).Once()
+
 	cleanupCalls := 0
 
 	engine := New()
@@ -181,6 +221,7 @@ func TestStartFailurePreservesProviderAndTemporaryDirectoryErrors(t *testing.T) 
 
 	recorder := new(providerMock)
 	recorder.On("Delete", "partial", "").Return(errProviderDelete).Once()
+
 	engine := New()
 	engine.removeTempDir = func(string) error { return errTempCleanup }
 	startErr := fmt.Errorf("startup failed: %w", ErrInvalidWait)
@@ -215,5 +256,10 @@ func (p *providerMock) Delete(name, kubeconfigPath string) error {
 
 func (p *providerMock) ExportKubeConfig(name, path string, internal bool) error {
 	args := p.Called(name, path, internal)
+	return args.Error(0)
+}
+
+func (p *providerMock) CollectLogs(name, dir string) error {
+	args := p.Called(name, dir)
 	return args.Error(0)
 }

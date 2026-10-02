@@ -14,6 +14,7 @@ type Options struct {
 	Name            string
 	NodeImage       string
 	KubeconfigPath  string
+	LogsDir         string
 	Wait            *time.Duration
 	Keep            *bool
 	ProviderOptions []kindcluster.ProviderOption
@@ -47,6 +48,10 @@ func (o Options) ApplyTo(target *Options) {
 		target.KubeconfigPath = o.KubeconfigPath
 	}
 
+	if o.LogsDir != "" {
+		target.LogsDir = o.LogsDir
+	}
+
 	if o.Wait != nil {
 		target.Wait = new(*o.Wait)
 	}
@@ -74,6 +79,11 @@ func WithNodeImage(image string) Option {
 // temporary directory owned by the engine.
 func WithKubeconfigPath(path string) Option {
 	return FunctionalOption(func(options *Options) { options.KubeconfigPath = path })
+}
+
+// WithLogsDir collects Kind node logs here if startup or a test fails.
+func WithLogsDir(path string) Option {
+	return FunctionalOption(func(options *Options) { options.LogsDir = path })
 }
 
 // WithWait sets the maximum duration used by the Kind provider while creating

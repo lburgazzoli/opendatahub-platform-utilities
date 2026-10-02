@@ -29,6 +29,7 @@ type effectiveOptions struct {
 	Name            string
 	NodeImage       string
 	KubeconfigPath  string
+	LogsDir         string
 	ProviderOptions []kindcluster.ProviderOption
 	Wait            time.Duration
 	Keep            bool
@@ -39,6 +40,7 @@ func (e *Engine) resolvedOptions() (effectiveOptions, error) {
 		Name:            e.options.Name,
 		NodeImage:       e.options.NodeImage,
 		KubeconfigPath:  e.options.KubeconfigPath,
+		LogsDir:         e.options.LogsDir,
 		Wait:            defaultWait,
 		ProviderOptions: slices.Clone(e.options.ProviderOptions),
 	}
@@ -103,6 +105,14 @@ func (e *Engine) startFailure(
 	tempDir string,
 	startErr error,
 ) error {
+	var logErr error
+	if options.LogsDir != "" {
+		logErr = provider.CollectLogs(options.Name, filepath.Join(options.LogsDir, options.Name))
+		if logErr != nil {
+			logErr = fmt.Errorf("collect Kind logs: %w", logErr)
+		}
+	}
+
 	deleteErr := provider.Delete(options.Name, "")
 	if ctx.Err() != nil {
 		deleteErr = errors.Join(deleteErr, ctx.Err())
@@ -110,7 +120,7 @@ func (e *Engine) startFailure(
 
 	tempErr := e.removeTempDirectory(tempDir)
 
-	return errors.Join(startErr, deleteErr, tempErr)
+	return errors.Join(startErr, logErr, deleteErr, tempErr)
 }
 
 func newProvider(options effectiveOptions) (provider, error) {
@@ -174,6 +184,7 @@ type provider interface {
 	Create(name string, options ...kindcluster.CreateOption) error
 	Delete(name, kubeconfigPath string) error
 	ExportKubeConfig(name, path string, internal bool) error
+	CollectLogs(name, dir string) error
 }
 
 type providerFactory func(effectiveOptions) (provider, error)

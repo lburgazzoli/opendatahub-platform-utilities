@@ -12,10 +12,14 @@ import (
 )
 
 var (
-	ErrAlreadyStarted = errors.New("kind engine already started")
+	ErrAlreadyStarted    = errors.New("kind engine already started")
+	ErrClusterNotStarted = errors.New("kind cluster is not started")
+	ErrLogsDirRequired   = errors.New("kind logs directory is required")
 )
 
 // Engine owns one disposable Kind cluster at a time.
+//
+//nolint:govet // Keep the provider and its cluster state together for lifecycle review.
 type Engine struct {
 	provider        provider
 	providerFactory providerFactory
@@ -67,6 +71,8 @@ func (c *Cluster) Client(scheme *runtime.Scheme) (client.Client, error) {
 // and waits until the API server answers successfully. If startup fails after
 // creation, the engine attempts to delete the partial cluster before returning
 // the error.
+//
+//nolint:cyclop // Startup checks each Kind lifecycle stage.
 func (e *Engine) Start(ctx context.Context) (*Cluster, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
@@ -154,6 +160,7 @@ func (e *Engine) Close(ctx context.Context) error {
 	}
 
 	deleteErr := kindProvider.Delete(cluster.name, cluster.kubeconfigPath)
+
 	tempErr := e.removeTempDirectory(tempDir)
 	if tempErr == nil {
 		e.tempDir = ""
@@ -166,6 +173,28 @@ func (e *Engine) Close(ctx context.Context) error {
 	}
 
 	return errors.Join(deleteErr, tempErr)
+}
+
+// CollectLogs saves node logs for a started cluster, typically before Close
+// when an integration test fails.
+func (e *Engine) CollectLogs(dir string) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+
+	if e.cluster == nil {
+		return ErrClusterNotStarted
+	}
+
+	if dir == "" {
+		return ErrLogsDirRequired
+	}
+
+	err := e.provider.CollectLogs(e.cluster.name, dir)
+	if err != nil {
+		return fmt.Errorf("collect Kind logs: %w", err)
+	}
+
+	return nil
 }
 
 func (e *Engine) cleanupPendingTempDir(ctx context.Context) error {
