@@ -46,9 +46,11 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	ro := RunOptions{}
 	ro.Merge(values...)
 
-	if err := ro.Validate(); err != nil {
+	err = ro.Validate()
+	if err != nil {
 		return Result{}, err
 	}
+
 	if a.cache != nil {
 		a.cache.Sync()
 	}
@@ -59,39 +61,45 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	var runErrors []error
 	for _, object := range ro.Resources.All() {
 		resources.SetLabels(object, a.options.Labels)
-		resources.SetAnnotations(object, a.options.Annotations)
 		resources.SetLabels(object, ro.Labels)
+		resources.SetAnnotations(object, a.options.Annotations)
 		resources.SetAnnotations(object, ro.Annotations)
 
-		var applied bool
+		var deployed bool
+		var deployErr error
+
 		err := a.options.MetadataPolicy.Apply(object, ro.Owner)
-		if err != nil {
-			err = fmt.Errorf("decorate: %w", err)
-		} else {
-			applied, err = a.deploy(ctx, ro, object)
+		switch {
+		case err != nil:
+			deployErr = fmt.Errorf("decorate: %w", err)
+		default:
+			deployed, deployErr = a.deploy(ctx, ro, object)
 		}
 
 		switch {
-		case err != nil:
+		case deployErr != nil:
 			identity := resources.Identity{
 				GVK:       object.GroupVersionKind(),
 				Namespace: object.GetNamespace(),
 				Name:      object.GetName(),
 			}
-			wrapped := fmt.Errorf("deploy %s: %w", identity, err)
+
+			runErrors = append(runErrors, fmt.Errorf("%s: %w", identity, deployErr))
 			if !a.options.ContinueOnError {
-				return result, wrapped
+				return result, fmt.Errorf("deploy: %w", errors.Join(runErrors...))
 			}
-			runErrors = append(runErrors, wrapped)
-			continue
-		case applied:
+		case deployed:
 			result.Applied++
 		default:
 			result.Skipped++
 		}
 	}
 
-	return result, errors.Join(runErrors...)
+	if len(runErrors) > 0 {
+		return result, fmt.Errorf("deploy: %w", errors.Join(runErrors...))
+	}
+
+	return result, nil
 }
 
 // deploy processes a decorated object through lookup, ownership,

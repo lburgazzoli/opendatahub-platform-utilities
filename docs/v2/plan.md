@@ -262,3 +262,7 @@ buildable; the v2 runtime must not depend on it.
   the exact resource, and covered both stop and continue-on-error behavior.
   The v2 race suite, vet, and formatter passed. The pinned linter still reports
   94 findings in the current tree.
+- [x] Reworked deploy `Run` to apply labels before annotations and aggregate
+  resource errors consistently while preserving the stop-on-error option.
+  The v2 race suite, vet, and formatting checks passed; the pinned linter
+  retained its 94 existing findings.
