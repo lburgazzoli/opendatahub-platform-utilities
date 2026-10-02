@@ -34,10 +34,6 @@ type KserveList struct {
 	Items []Kserve `json:"items"`
 }
 
-func NewKserve() *Kserve {
-	return &Kserve{TypeMeta: metav1.TypeMeta{APIVersion: GroupVersion.String(), Kind: KserveGVK.Kind}}
-}
-
 func (k *Kserve) GetStatus() *platformapi.Status {
 	return &k.Status.Status
 }

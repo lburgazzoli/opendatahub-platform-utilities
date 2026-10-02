@@ -1,0 +1,4 @@
+module:
+  enabled: true
+projections:
+  enabled: false

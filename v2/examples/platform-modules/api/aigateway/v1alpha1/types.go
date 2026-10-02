@@ -34,10 +34,6 @@ type AIGatewayList struct {
 	Items []AIGateway `json:"items"`
 }
 
-func NewAIGateway() *AIGateway {
-	return &AIGateway{TypeMeta: metav1.TypeMeta{APIVersion: GroupVersion.String(), Kind: AIGatewayGVK.Kind}}
-}
-
 func (a *AIGateway) GetStatus() *platformapi.Status {
 	return &a.Status.Status
 }

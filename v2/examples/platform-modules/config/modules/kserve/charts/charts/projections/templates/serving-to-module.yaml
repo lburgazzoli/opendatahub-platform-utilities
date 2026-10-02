@@ -1,0 +1,16 @@
+{{- $source := .Values.input -}}
+{{- if and (eq $source.apiVersion "example.platform.odh.io/v1alpha1") (eq $source.kind "Serving") -}}
+{{- $component := default dict (index (default dict $source.spec) "kserve") -}}
+{{- range $target := .Values.targets -}}
+{{- $object := $target.object -}}
+{{- if and (eq $object.apiVersion "kserve.example.odh.io/v1alpha1") (eq $object.kind "Kserve") }}
+---
+apiVersion: kserve.example.odh.io/v1alpha1
+kind: Kserve
+metadata:
+  name: {{ required "Kserve target metadata.name is required" $object.metadata.name | quote }}
+spec:
+  managementState: {{ default "Removed" $component.managementState | quote }}
+{{- end -}}
+{{- end -}}
+{{- end -}}

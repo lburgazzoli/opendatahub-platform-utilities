@@ -1,0 +1,4 @@
+apiVersion: v2
+name: projections
+version: 0.1.0
+description: Kserve spec and status projections.

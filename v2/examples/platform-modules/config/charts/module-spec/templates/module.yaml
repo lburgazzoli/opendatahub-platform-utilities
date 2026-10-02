@@ -1,6 +1,0 @@
-apiVersion: {{ .Values.apiVersion }}
-kind: {{ .Values.kind }}
-metadata:
-  name: cluster
-spec:
-  managementState: {{ .Values.managementState }}

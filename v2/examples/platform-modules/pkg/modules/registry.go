@@ -2,13 +2,14 @@
 package modules
 
 import (
+	"cmp"
 	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"slices"
-	"strings"
 
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 )
@@ -19,24 +20,16 @@ var (
 	ErrEmptyRegistry     = errors.New("empty module registry")
 )
 
-// Definition binds a module name to its CRD and controller chart.
+// Definition binds a module config to its resolved controller chart.
 type Definition struct {
-	Values     map[string]any `json:"values,omitempty"`
-	Name       string         `json:"name"`
-	CRD        string         `json:"crd"`
-	APIVersion string         `json:"apiVersion"`
-	Kind       string         `json:"kind"`
-	Chart      string         `json:"chart"`
+	Chart   string
+	CRDName string
+	Plural  string
+	Config  PlatformModuleConfig
 }
 
 func (d Definition) GVK() schema.GroupVersionKind {
-	return schema.FromAPIVersionAndKind(d.APIVersion, d.Kind)
-}
-
-func (d Definition) Resource() string {
-	resource, _, _ := strings.Cut(d.CRD, ".")
-
-	return resource
+	return schema.FromAPIVersionAndKind(d.Config.Spec.ModuleRef.APIVersion, d.Config.Spec.ModuleRef.Kind)
 }
 
 // Registry is an immutable startup snapshot of module bundles.
@@ -62,11 +55,12 @@ func Load(root string) (*Registry, error) {
 			return nil, err
 		}
 
-		if _, exists := registry.definitions[definition.Name]; exists {
-			return nil, fmt.Errorf("%w: %q", ErrDuplicateModule, definition.Name)
+		name := definition.Config.Metadata.Name
+		if _, exists := registry.definitions[name]; exists {
+			return nil, fmt.Errorf("%w: %q", ErrDuplicateModule, name)
 		}
 
-		registry.definitions[definition.Name] = definition
+		registry.definitions[name] = definition
 	}
 
 	if len(registry.definitions) == 0 {
@@ -78,47 +72,94 @@ func Load(root string) (*Registry, error) {
 
 func loadDefinition(directory string) (Definition, error) {
 	path := filepath.Join(directory, "module.yaml")
-	data, err := os.ReadFile(path) //nolint:gosec // Paths come from entries in the selected registry directory.
+	config, err := LoadConfigFile(path)
 	if err != nil {
-		return Definition{}, fmt.Errorf("read %q: %w", path, err)
+		return Definition{}, fmt.Errorf("load %q: %w", path, err)
 	}
 
-	var definition Definition
-	err = yaml.UnmarshalStrict(data, &definition)
-	if err != nil {
-		return Definition{}, fmt.Errorf("decode %q: %w", path, err)
+	if config.Metadata.Name != filepath.Base(directory) {
+		return Definition{}, fmt.Errorf(
+			"%w: metadata.name %q must match directory %q",
+			ErrInvalidDefinition,
+			config.Metadata.Name,
+			filepath.Base(directory),
+		)
 	}
 
-	err = definition.validate()
+	chartPath := cmp.Or(config.Spec.Chart.Path, config.Metadata.Name)
+	chart, err := resolveChart(directory, chartPath)
 	if err != nil {
-		return Definition{}, fmt.Errorf("validate %q: %w", path, err)
+		return Definition{}, fmt.Errorf("module %q chart: %w", config.Metadata.Name, err)
 	}
 
-	definition.Chart = filepath.Clean(filepath.Join(directory, definition.Chart))
-	_, err = os.Stat(filepath.Join(definition.Chart, "Chart.yaml"))
+	crd, err := readChartCRD(chart, config)
 	if err != nil {
-		return Definition{}, fmt.Errorf("module %q chart: %w", definition.Name, err)
+		return Definition{}, err
 	}
 
-	return definition, nil
+	return Definition{
+		Chart:   chart,
+		CRDName: crd.Name,
+		Plural:  crd.Spec.Names.Plural,
+		Config:  config,
+	}, nil
 }
 
-func (d Definition) validate() error {
-	if slices.Contains([]string{d.Name, d.CRD, d.APIVersion, d.Kind, d.Chart}, "") {
-		return fmt.Errorf("%w: name, crd, apiVersion, kind, and chart are required", ErrInvalidDefinition)
+func resolveChart(directory string, chartPath string) (string, error) {
+	if !filepath.IsLocal(chartPath) {
+		return "", fmt.Errorf("%w: chart path %q must be local", ErrInvalidDefinition, chartPath)
 	}
 
-	groupVersion, err := schema.ParseGroupVersion(d.APIVersion)
+	root, err := filepath.EvalSymlinks(directory)
 	if err != nil {
-		return fmt.Errorf("apiVersion %q: %w", d.APIVersion, err)
+		return "", fmt.Errorf("resolve module directory %q: %w", directory, err)
 	}
 
-	resource, group, found := strings.Cut(d.CRD, ".")
-	if !found || resource == "" || group != groupVersion.Group {
-		return fmt.Errorf("%w: crd %q must use group %q", ErrInvalidDefinition, d.CRD, groupVersion.Group)
+	chart, err := filepath.EvalSymlinks(filepath.Join(root, chartPath))
+	if err != nil {
+		return "", fmt.Errorf("resolve chart path %q: %w", chartPath, err)
 	}
 
-	return nil
+	relative, err := filepath.Rel(root, chart)
+	if err != nil || !filepath.IsLocal(relative) && relative != "." {
+		return "", fmt.Errorf("%w: chart path %q escapes module directory", ErrInvalidDefinition, chartPath)
+	}
+
+	_, err = os.Stat(filepath.Join(chart, "Chart.yaml"))
+	if err != nil {
+		return "", fmt.Errorf("chart metadata: %w", err)
+	}
+
+	return chart, nil
+}
+
+func readChartCRD(chart string, config PlatformModuleConfig) (apiextensionsv1.CustomResourceDefinition, error) {
+	//nolint:gosec // The path is selected from the local module registry.
+	data, err := os.ReadFile(filepath.Join(chart, "charts", "module", "templates", "crd.yaml"))
+	if err != nil {
+		return apiextensionsv1.CustomResourceDefinition{}, fmt.Errorf("module %q CRD: %w", config.Metadata.Name, err)
+	}
+
+	var crd apiextensionsv1.CustomResourceDefinition
+	err = yaml.UnmarshalStrict(data, &crd)
+	if err != nil {
+		return apiextensionsv1.CustomResourceDefinition{}, fmt.Errorf("decode module %q CRD: %w", config.Metadata.Name, err)
+	}
+
+	gvk := schema.FromAPIVersionAndKind(config.Spec.ModuleRef.APIVersion, config.Spec.ModuleRef.Kind)
+	if crd.Spec.Group != gvk.Group || crd.Spec.Names.Kind != gvk.Kind || crd.Name != crd.Spec.Names.Plural+"."+gvk.Group {
+		return apiextensionsv1.CustomResourceDefinition{}, fmt.Errorf(
+			"%w: module %q CRD does not match spec.moduleRef", ErrInvalidDefinition, config.Metadata.Name,
+		)
+	}
+
+	if len(crd.Spec.Versions) != 1 || crd.Spec.Versions[0].Name != gvk.Version {
+		return apiextensionsv1.CustomResourceDefinition{}, fmt.Errorf(
+			"%w: module %q CRD version does not match spec.moduleRef", ErrInvalidDefinition, config.Metadata.Name,
+		)
+	}
+
+	return crd, nil
 }
 
 func (r *Registry) Get(name string) (Definition, bool) {

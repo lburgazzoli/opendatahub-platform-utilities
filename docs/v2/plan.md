@@ -285,3 +285,17 @@ buildable; the v2 runtime must not depend on it.
   formatter, and pinned linter passed. The complete Podman Kind suite passed
   both Platform/module and Serving flows in one process, including dynamic
   CRD installation, readiness, simulated failure recovery, and module removal.
+- [x] Replaced the example's command-selection switch with Cobra subcommands
+  for `run controller platform|serving` and `run module kserve|aigateway`.
+  The module subcommands pass typed API objects to the shared controller.
+  The example's formatter, race tests, linter, and build passed; CLI help
+  paths were checked directly.
+- [x] Changed the example's module descriptors to the deployer's
+  `PlatformModuleConfig` YAML shape. Each module now owns an umbrella chart
+  with conditional `module` and `projections` children. The module child
+  installs its generated CRD and controller, while Serving renders spec and
+  status apply objects through each module's projections child. The complete
+  descriptor spec is passed under `.Values.module` for workload renders.
+  `make manifests` generates module CRDs directly into those charts. The
+  example's formatter, race tests, linter, build, e2e compilation, and both
+  Podman Kind integration tests passed.

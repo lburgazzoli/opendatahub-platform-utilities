@@ -1,10 +1,10 @@
 package serving
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"path/filepath"
 	"slices"
 	"time"
 
@@ -37,17 +37,16 @@ var (
 )
 
 type ServingController struct {
-	client         client.Client
-	reader         client.Reader
-	registry       *modules.Registry
-	specRenderer   *manifestengine.Engine
-	statusRenderer *manifestengine.Engine
-	deployer       *deploy.Action
+	client    client.Client
+	reader    client.Reader
+	registry  *modules.Registry
+	renderers map[string]*manifestengine.Engine
+	deployer  *deploy.Action
 }
 
-func Setup(manager manager.Manager, registry *modules.Registry, chartDir string) error {
-	if registry == nil || chartDir == "" {
-		return fmt.Errorf("%w: registry and chart directory are required", ErrInvalidServingConfig)
+func Setup(manager manager.Manager, registry *modules.Registry) error {
+	if registry == nil {
+		return fmt.Errorf("%w: registry is required", ErrInvalidServingConfig)
 	}
 
 	for _, name := range []string{"kserve", "aigateway"} {
@@ -56,29 +55,29 @@ func Setup(manager manager.Manager, registry *modules.Registry, chartDir string)
 		}
 	}
 
-	specRenderer, err := helm.NewEngine(
-		helm.Source{Chart: filepath.Join(chartDir, "module-spec"), ReleaseName: "module-spec"},
-		helm.WithCache(),
-	)
-	if err != nil {
-		return fmt.Errorf("create spec projection renderer: %w", err)
-	}
-
-	statusRenderer, err := helm.NewEngine(
-		helm.Source{Chart: filepath.Join(chartDir, "serving-status"), ReleaseName: "serving-status"},
-		helm.WithCache(),
-	)
-	if err != nil {
-		return fmt.Errorf("create status projection renderer: %w", err)
-	}
-
 	controller := &ServingController{
-		client:         manager.GetClient(),
-		reader:         manager.GetAPIReader(),
-		registry:       registry,
-		specRenderer:   specRenderer,
-		statusRenderer: statusRenderer,
-		deployer:       deploy.New(deploy.WithFieldOwner("example-serving")),
+		client:    manager.GetClient(),
+		reader:    manager.GetAPIReader(),
+		registry:  registry,
+		renderers: make(map[string]*manifestengine.Engine),
+		deployer:  deploy.New(deploy.WithFieldOwner("example-serving")),
+	}
+	for _, name := range registry.Names() {
+		definition, _ := registry.Get(name)
+		renderer, err := helm.NewEngine(
+			helm.Source{
+				Chart:               definition.Chart,
+				ReleaseName:         cmp.Or(definition.Config.Spec.Chart.Name, name),
+				ReleaseVersion:      definition.Config.Spec.Chart.Version,
+				ProcessDependencies: true,
+			},
+			helm.WithCache(),
+		)
+		if err != nil {
+			return fmt.Errorf("create %s projection renderer: %w", name, err)
+		}
+
+		controller.renderers[name] = renderer
 	}
 
 	statusWatch := platformpredicate.Dependent(platformpredicate.DependentOptions{
@@ -123,7 +122,7 @@ func (c *ServingController) reconcile(ctx context.Context, request *pipeline.Req
 		return action.NewError("waiting for module CR removal").Advisory().WithRequeueAfter(2 * time.Second)
 	}
 
-	objects, err := c.renderResources(ctx, selected)
+	objects, err := c.renderResources(ctx, serving, selected)
 	if err != nil {
 		return err
 	}
@@ -137,7 +136,7 @@ func (c *ServingController) reconcile(ctx context.Context, request *pipeline.Req
 		return fmt.Errorf("deploy Serving projections: %w", err)
 	}
 
-	err = c.projectStatus(ctx, selected)
+	err = c.projectStatus(ctx, serving, selected)
 	if err != nil {
 		return err
 	}
@@ -174,7 +173,11 @@ func (c *ServingController) selectModules(ctx context.Context, serving *v1alpha1
 	return selected, false, nil
 }
 
-func (c *ServingController) renderResources(ctx context.Context, selected []string) (resources.List, error) {
+func (c *ServingController) renderResources(
+	ctx context.Context,
+	serving *v1alpha1.Serving,
+	selected []string,
+) (resources.List, error) {
 	objects := make(resources.List, 0, len(selected)+1)
 	platform := v1alpha1.NewPlatform()
 	platform.Name = v1alpha1.PlatformName
@@ -186,59 +189,122 @@ func (c *ServingController) renderResources(ctx context.Context, selected []stri
 	}
 	objects = append(objects, *platformObject)
 
+	source, err := resources.ToUnstructured(serving)
+	if err != nil {
+		return nil, fmt.Errorf("convert Serving source: %w", err)
+	}
+	source.SetGroupVersionKind(v1alpha1.ServingGVK)
+
 	for _, name := range selected {
 		definition, _ := c.registry.Get(name)
-		rendered, renderErr := c.specRenderer.Render(ctx, manifestrender.WithValues(manifesttypes.Values{
-			"apiVersion":      definition.APIVersion,
-			"kind":            definition.Kind,
-			"managementState": string(platformapi.ManagementStateManaged),
-		}))
+		target := map[string]any{
+			"object": map[string]any{
+				"apiVersion": definition.Config.Spec.ModuleRef.APIVersion,
+				"kind":       definition.Config.Spec.ModuleRef.Kind,
+				"metadata":   map[string]any{"name": definition.Config.Spec.ModuleRef.Name},
+			},
+		}
+
+		rendered, renderErr := c.renderProjection(ctx, name, *source, true, false, target)
 		if renderErr != nil {
 			return nil, fmt.Errorf("project %s spec: %w", name, renderErr)
 		}
+
+		if len(rendered) != 1 || rendered[0].GroupVersionKind() != definition.GVK() ||
+			rendered[0].GetName() != definition.Config.Spec.ModuleRef.Name {
+			return nil, fmt.Errorf("%w: %s spec rendered an unexpected object", ErrInvalidStatusProjection, name)
+		}
+
 		objects = append(objects, rendered...)
 	}
+
 	return objects, nil
 }
 
-func (c *ServingController) projectStatus(ctx context.Context, selected []string) error {
-	ready := make(map[string]bool, len(selected))
+func (c *ServingController) projectStatus(
+	ctx context.Context,
+	serving *v1alpha1.Serving,
+	selected []string,
+) error {
 	for _, name := range c.registry.Names() {
-		if !slices.Contains(selected, name) {
-			continue
+		definition, _ := c.registry.Get(name)
+		source := &unstructured.Unstructured{Object: make(map[string]any)}
+		source.SetGroupVersionKind(definition.GVK())
+		source.SetName(definition.Config.Spec.ModuleRef.Name)
+
+		exists := false
+		ready := false
+		if slices.Contains(selected, name) {
+			module, found, moduleReady, err := c.moduleSource(ctx, name)
+			if err != nil {
+				return err
+			}
+
+			source = module
+			exists = found
+			ready = moduleReady
 		}
 
-		value, err := c.moduleReady(ctx, name)
+		state := platformapi.ManagementStateRemoved
+		if slices.Contains(selected, name) {
+			state = platformapi.ManagementStateManaged
+		}
+
+		target := map[string]any{
+			"object": map[string]any{
+				"apiVersion": v1alpha1.GroupVersion.String(),
+				"kind":       v1alpha1.ServingGVK.Kind,
+				"metadata":   map[string]any{"name": serving.Name},
+			},
+			"managementState": string(state),
+		}
+
+		rendered, err := c.renderProjection(ctx, name, *source, exists, ready, target)
 		if err != nil {
-			return err
+			return fmt.Errorf("project %s status: %w", name, err)
 		}
-		ready[name] = value
-	}
 
-	rendered, err := c.statusRenderer.Render(ctx, manifestrender.WithValues(manifesttypes.Values{
-		"kserveReady": ready["kserve"],
-		"maasReady":   ready["aigateway"],
-	}))
-	if err != nil {
-		return fmt.Errorf("project Serving status: %w", err)
-	}
-	if len(rendered) != 1 {
-		return fmt.Errorf("%w: chart rendered %d objects", ErrInvalidStatusProjection, len(rendered))
-	}
+		if len(rendered) != 1 || rendered[0].GroupVersionKind() != v1alpha1.ServingGVK ||
+			rendered[0].GetName() != serving.Name {
+			return fmt.Errorf("%w: %s status rendered an unexpected object", ErrInvalidStatusProjection, name)
+		}
 
-	err = resources.ApplyStatus(ctx, c.client, &rendered[0], client.FieldOwner("example-serving-status"))
-	if err != nil {
-		return fmt.Errorf("apply Serving status: %w", err)
+		err = resources.ApplyStatus(ctx, c.client, &rendered[0], client.FieldOwner("example-serving-status-"+name))
+		if err != nil {
+			return fmt.Errorf("apply %s Serving status: %w", name, err)
+		}
 	}
 
 	return nil
+}
+
+func (c *ServingController) renderProjection(
+	ctx context.Context,
+	name string,
+	source unstructured.Unstructured,
+	exists bool,
+	ready bool,
+	target map[string]any,
+) (resources.List, error) {
+	values := manifesttypes.Values{
+		"module": map[string]any{"enabled": false},
+		"projections": map[string]any{
+			"enabled": true,
+			"input":   source.Object,
+			"exists":  exists,
+			"ready":   ready,
+			"targets": []any{target},
+		},
+	}
+
+	return c.renderers[name].Render(ctx, manifestrender.WithValues(values))
 }
 
 func (c *ServingController) removeModuleCR(ctx context.Context, name string) (bool, error) {
 	definition, _ := c.registry.Get(name)
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(definition.GVK())
-	key := types.NamespacedName{Name: v1alpha1.InstanceName}
+	key := types.NamespacedName{Name: definition.Config.Spec.ModuleRef.Name}
 
 	err := c.reader.Get(ctx, key, object)
 	switch {
@@ -260,27 +326,44 @@ func (c *ServingController) removeModuleCR(ctx context.Context, name string) (bo
 	return false, nil
 }
 
-func (c *ServingController) moduleReady(ctx context.Context, name string) (bool, error) {
+func (c *ServingController) moduleSource(
+	ctx context.Context,
+	name string,
+) (*unstructured.Unstructured, bool, bool, error) {
 	definition, _ := c.registry.Get(name)
+	synthetic := &unstructured.Unstructured{Object: make(map[string]any)}
+	synthetic.SetGroupVersionKind(definition.GVK())
+	synthetic.SetName(definition.Config.Spec.ModuleRef.Name)
+
 	value, err := c.client.Scheme().New(definition.GVK())
 	if err != nil {
-		return false, fmt.Errorf("construct %s object: %w", name, err)
+		return nil, false, false, fmt.Errorf("construct %s object: %w", name, err)
 	}
 	object, ok := value.(platformapi.PlatformObject)
 	if !ok {
-		return false, fmt.Errorf("%w: %s does not implement PlatformObject", ErrInvalidStatusProjection, definition.GVK())
+		return nil, false, false, fmt.Errorf(
+			"%w: %s does not implement PlatformObject", ErrInvalidStatusProjection, definition.GVK(),
+		)
 	}
 
-	err = c.reader.Get(ctx, types.NamespacedName{Name: v1alpha1.InstanceName}, object)
+	err = c.reader.Get(ctx, types.NamespacedName{Name: definition.Config.Spec.ModuleRef.Name}, object)
 	switch {
 	case apierrors.IsNotFound(err):
-		return false, nil
+		return synthetic, false, false, nil
 	case meta.IsNoMatchError(err):
-		return false, nil
+		return synthetic, false, false, nil
 	case err != nil:
-		return false, fmt.Errorf("get %s status: %w", name, err)
+		return nil, false, false, fmt.Errorf("get %s status: %w", name, err)
 	}
 
-	return condition.IsTrue(object.GetStatus(), string(platformapi.ConditionTypeReady)) &&
-		object.GetStatus().ObservedGeneration == object.GetGeneration(), nil
+	source, err := resources.ToUnstructured(object)
+	if err != nil {
+		return nil, false, false, fmt.Errorf("convert %s source: %w", name, err)
+	}
+	source.SetGroupVersionKind(definition.GVK())
+
+	ready := condition.IsTrue(object.GetStatus(), string(platformapi.ConditionTypeReady)) &&
+		object.GetStatus().ObservedGeneration == object.GetGeneration()
+
+	return source, true, ready, nil
 }

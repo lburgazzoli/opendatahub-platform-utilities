@@ -15,16 +15,22 @@ the module CRDs are installed after its manager starts.
 ## Module bundles
 
 `config/modules/kserve` and `config/modules/aigateway` each contain a
-`module.yaml`. It names the CRD, GVK, chart, and chart values.
-`pkg/modules.Load` reads the definitions at startup. The shared controller
-chart derives the CRD name, group, version, kind, and resource names from each
-definition, then installs it with the module controller. The module controller
-uses the same definition to choose its typed
-prototype. The API packages are separate groups under `api/kserve` and
+`module.yaml` in the deployer's `PlatformModuleConfig` format. Its
+`spec.moduleRef` identifies the module CR; `spec.chart.path` selects the chart
+relative to that module's directory. Each module keeps an umbrella chart in
+`charts/` with `module` and `projections` children. The `module` child installs
+the generated CRD and controller Deployment; the `projections` child renders
+Serving-to-module spec and module-to-Serving status apply objects. Exactly one
+child is enabled for a render, and projection output is never deployed as a
+Helm release. `pkg/modules.Load` validates the descriptors at startup. The
+PlatformModule controller passes the complete config spec as `.Values.module`,
+along with image and namespace, so the module child reads `.Values.config.replicas`.
+The module controller receives its typed API object from the corresponding
+module subcommand. The API packages are separate groups under `api/kserve` and
 `api/aigateway`.
 
-`make manifests` regenerates the API code and reference CRDs. The module chart
-contains the CRD template used at runtime.
+`make manifests` regenerates the API code and Platform CRDs, and writes each
+module CRD directly into its module child chart for runtime installation.
 
 ## Run locally
 
@@ -61,6 +67,7 @@ module controllers locally, execute `go run ./cmd run module kserve` or
 `go run ./cmd run module aigateway` from this directory after its CRD exists.
 The Platform and Serving commands are `go run ./cmd run controller platform`
 and `go run ./cmd run controller serving`.
+Run `go run ./cmd run --help` to see the controller and module subcommands.
 
 Add `example.platform.odh.io/simulated-failure` with a nonempty value to a
 Kserve or AI Gateway CR to make its controller return an error. Its

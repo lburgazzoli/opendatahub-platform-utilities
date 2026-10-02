@@ -15,8 +15,8 @@ func TestUpdateStatusFromFailureAnnotation(t *testing.T) {
 	t.Parallel()
 
 	modules := map[string]platformapi.PlatformObject{
-		"kserve":    kservev1alpha1.NewKserve(),
-		"aigateway": aigatewayv1alpha1.NewAIGateway(),
+		"kserve":    new(kservev1alpha1.Kserve),
+		"aigateway": new(aigatewayv1alpha1.AIGateway),
 	}
 	for name, object := range modules {
 		t.Run(name, func(t *testing.T) {

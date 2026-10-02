@@ -3,6 +3,7 @@ package modules_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/onsi/gomega"
@@ -17,28 +18,79 @@ func TestLoadExampleBundles(t *testing.T) {
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(registry.Names()).To(gomega.Equal([]string{"aigateway", "kserve"}))
 
-	kserve, found := registry.Get("kserve")
-	g.Expect(found).To(gomega.BeTrue())
-	g.Expect(kserve.CRD).To(gomega.Equal("kserves.kserve.example.odh.io"))
+	for _, name := range registry.Names() {
+		definition, found := registry.Get(name)
+		g.Expect(found).To(gomega.BeTrue())
+		g.Expect(definition.Config.APIVersion).To(gomega.Equal(modules.ConfigAPIVersion))
+		g.Expect(definition.Config.Kind).To(gomega.Equal(modules.ConfigKind))
+		g.Expect(definition.Config.Metadata.Name).To(gomega.Equal(name))
+		g.Expect(definition.Config.Spec.ModuleRef.Name).To(gomega.Equal("cluster"))
+		g.Expect(filepath.Base(definition.Chart)).To(gomega.Equal("charts"))
+	}
+
+	kserve, _ := registry.Get("kserve")
 	g.Expect(kserve.GVK().Kind).To(gomega.Equal("Kserve"))
-	g.Expect(kserve.Resource()).To(gomega.Equal("kserves"))
-	g.Expect(filepath.Base(kserve.Chart)).To(gomega.Equal("module-controller"))
+	g.Expect(kserve.CRDName).To(gomega.Equal("kserves.kserve.example.odh.io"))
+	g.Expect(kserve.Plural).To(gomega.Equal("kserves"))
 }
 
-func TestLoadRejectsInconsistentCRD(t *testing.T) {
+func TestLoadConfigRejectsInvalidDocuments(t *testing.T) {
+	t.Parallel()
+
+	base := `apiVersion: deployer.opendatahub.io/v1alpha1
+kind: PlatformModuleConfig
+metadata:
+  name: sample
+spec:
+  moduleRef:
+    apiVersion: example.odh.io/v1alpha1
+    kind: Sample
+    name: cluster
+`
+
+	tests := []struct {
+		name    string
+		yaml    string
+		message string
+	}{
+		{name: "unknown field", yaml: base + "unexpected: true\n", message: "field unexpected not found"},
+		{name: "multiple documents", yaml: base + "---\n" + base, message: "exactly one YAML document"},
+		{name: "invalid runlevel", yaml: base + "  runlevel: -1\n", message: "spec.runlevel"},
+		{name: "duplicate service", yaml: base + "  services: [gateway, gateway]\n", message: "duplicate"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			g := gomega.NewWithT(t)
+
+			_, err := modules.LoadConfig(strings.NewReader(tt.yaml))
+			g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring(tt.message)))
+		})
+	}
+}
+
+func TestLoadRejectsChartOutsideModule(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 	root := t.TempDir()
-	bundle := filepath.Join(root, "invalid")
-	g.Expect(os.Mkdir(bundle, 0o750)).To(gomega.Succeed())
-	g.Expect(os.WriteFile(filepath.Join(bundle, "module.yaml"), []byte(`
-name: invalid
-crd: invalid.other.example
-apiVersion: example.platform.odh.io/v1alpha1
-kind: Invalid
-chart: chart
-`), 0o600)).To(gomega.Succeed())
+	directory := filepath.Join(root, "sample")
+	g.Expect(os.Mkdir(directory, 0o750)).To(gomega.Succeed())
+
+	config := `apiVersion: deployer.opendatahub.io/v1alpha1
+kind: PlatformModuleConfig
+metadata:
+  name: sample
+spec:
+  moduleRef:
+    apiVersion: sample.example.odh.io/v1alpha1
+    kind: Sample
+    name: cluster
+  chart:
+    path: ../outside
+`
+	g.Expect(os.WriteFile(filepath.Join(directory, "module.yaml"), []byte(config), 0o600)).To(gomega.Succeed())
 
 	_, err := modules.Load(root)
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("must use group")))
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("chart path")))
 }

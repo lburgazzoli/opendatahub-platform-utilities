@@ -1,10 +1,10 @@
 package platform
 
 import (
+	"cmp"
 	"context"
 	"errors"
 	"fmt"
-	"maps"
 	"time"
 
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
@@ -23,6 +23,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -76,7 +77,13 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string, na
 		definition, _ := registry.Get(name)
 
 		renderer, err := helm.NewEngine(
-			helm.Source{Chart: definition.Chart, ReleaseName: name, ReleaseNamespace: namespace},
+			helm.Source{
+				Chart:               definition.Chart,
+				ReleaseName:         cmp.Or(definition.Config.Spec.Chart.Name, name),
+				ReleaseNamespace:    namespace,
+				ReleaseVersion:      definition.Config.Spec.Chart.Version,
+				ProcessDependencies: true,
+			},
 			helm.WithCache(),
 		)
 		if err != nil {
@@ -138,23 +145,26 @@ func (c *PlatformModuleController) render(ctx context.Context, request *pipeline
 	}
 
 	definition, found := c.registry.Get(module.Spec.Module)
-	if !found || module.Name != definition.Name {
+	if !found || module.Name != definition.Config.Metadata.Name {
 		return fmt.Errorf("%w: %q names module %q", ErrInvalidPlatformModule, module.Name, module.Spec.Module)
 	}
 
-	values := manifesttypes.Values(maps.Clone(definition.Values))
-	values["name"] = definition.Name
-	values["namespace"] = c.namespace
-	values["image"] = c.image
-	values["crd"] = definition.CRD
-	values["group"] = definition.GVK().Group
-	values["version"] = definition.GVK().Version
-	values["kind"] = definition.Kind
-	values["resource"] = definition.Resource()
-
-	rendered, err := c.renderers[definition.Name].Render(ctx, manifestrender.WithValues(values))
+	moduleValues, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&definition.Config.Spec)
 	if err != nil {
-		return fmt.Errorf("render module %q chart: %w", definition.Name, err)
+		return fmt.Errorf("convert module %q spec: %w", module.Spec.Module, err)
+	}
+	moduleValues["enabled"] = true
+	moduleValues["namespace"] = c.namespace
+	moduleValues["image"] = c.image
+
+	values := manifesttypes.Values{
+		"module":      moduleValues,
+		"projections": map[string]any{"enabled": false},
+	}
+
+	rendered, err := c.renderers[module.Spec.Module].Render(ctx, manifestrender.WithValues(values))
+	if err != nil {
+		return fmt.Errorf("render module %q chart: %w", module.Spec.Module, err)
 	}
 
 	request.Resources.Set(rendered)
@@ -175,15 +185,15 @@ func (c *PlatformModuleController) waitForModuleCR(ctx context.Context, request 
 
 	object := &unstructured.Unstructured{}
 	object.SetGroupVersionKind(definition.GVK())
-	err = c.reader.Get(ctx, types.NamespacedName{Name: v1alpha1.InstanceName}, object)
+	err = c.reader.Get(ctx, types.NamespacedName{Name: definition.Config.Spec.ModuleRef.Name}, object)
 	switch {
 	case err == nil:
-		return action.NewErrorf("waiting for %s/%s removal", definition.Kind, object.GetName()).
+		return action.NewErrorf("waiting for %s/%s removal", definition.GVK().Kind, object.GetName()).
 			Advisory().WithRequeueAfter(2 * time.Second)
 	case apierrors.IsNotFound(err):
 		return nil
 	default:
-		return fmt.Errorf("get module CR %q: %w", definition.CRD, err)
+		return fmt.Errorf("get module CR %q: %w", definition.CRDName, err)
 	}
 }
 

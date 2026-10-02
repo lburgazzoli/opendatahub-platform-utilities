@@ -20,7 +20,11 @@ generate:
 	$(CONTROLLER_GEN) object paths="./api/..."
 
 manifests: generate
-	$(CONTROLLER_GEN) crd paths="./api/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd paths="./api/platform/..." output:crd:artifacts:config=config/crd/bases
+	$(CONTROLLER_GEN) crd paths="./api/kserve/..." output:crd:artifacts:config=config/modules/kserve/charts/charts/module/templates
+	mv config/modules/kserve/charts/charts/module/templates/kserve.example.odh.io_kserves.yaml config/modules/kserve/charts/charts/module/templates/crd.yaml
+	$(CONTROLLER_GEN) crd paths="./api/aigateway/..." output:crd:artifacts:config=config/modules/aigateway/charts/charts/module/templates
+	mv config/modules/aigateway/charts/charts/module/templates/aigateway.example.odh.io_aigateways.yaml config/modules/aigateway/charts/charts/module/templates/crd.yaml
 
 .PHONY: fmt vet lint test test-e2e test-e2e-platform test-e2e-serving test-e2e-compile
 fmt:

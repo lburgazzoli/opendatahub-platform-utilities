@@ -1,0 +1,4 @@
+apiVersion: v2
+name: module
+version: 0.1.0
+description: AI Gateway module controller and CRD.

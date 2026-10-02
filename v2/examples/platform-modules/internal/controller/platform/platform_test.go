@@ -10,6 +10,7 @@ import (
 	"github.com/onsi/gomega"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 )
 
 func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
@@ -21,22 +22,24 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 	for _, name := range registry.Names() {
 		definition, _ := registry.Get(name)
 		renderer, err := helm.NewEngine(helm.Source{
-			Chart:            definition.Chart,
-			ReleaseName:      name,
-			ReleaseNamespace: "default",
+			Chart:               definition.Chart,
+			ReleaseName:         definition.Config.Spec.Chart.Name,
+			ReleaseNamespace:    "default",
+			ReleaseVersion:      definition.Config.Spec.Chart.Version,
+			ProcessDependencies: true,
 		})
 		g.Expect(err).To(gomega.Succeed())
 
+		moduleValues, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&definition.Config.Spec)
+		g.Expect(err).To(gomega.Succeed())
+		moduleValues["config"] = map[string]any{"replicas": 2}
+		moduleValues["enabled"] = true
+		moduleValues["namespace"] = "default"
+		moduleValues["image"] = "ttl.sh/example:24h"
+
 		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(manifesttypes.Values{
-			"name":      name,
-			"namespace": "default",
-			"image":     "ttl.sh/example:24h",
-			"crd":       definition.CRD,
-			"group":     definition.GVK().Group,
-			"version":   definition.GVK().Version,
-			"kind":      definition.Kind,
-			"resource":  definition.Resource(),
-			"replicas":  1,
+			"module":      moduleValues,
+			"projections": map[string]any{"enabled": false},
 		}))
 		g.Expect(err).To(gomega.Succeed())
 		g.Expect(objects).To(gomega.HaveLen(5))
@@ -60,7 +63,12 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 		container, ok := containers[0].(map[string]any)
 		g.Expect(ok).To(gomega.BeTrue())
 		g.Expect(container["image"]).To(gomega.Equal("ttl.sh/example:24h"))
-		g.Expect(container["args"]).To(gomega.Equal([]any{"run", "module", definition.Name}))
+		g.Expect(container["args"]).To(gomega.Equal([]any{"run", "module", name}))
+
+		replicas, found, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+		g.Expect(err).To(gomega.Succeed())
+		g.Expect(found).To(gomega.BeTrue())
+		g.Expect(replicas).To(gomega.Equal(int64(2)))
 	}
 }
 
@@ -68,7 +76,7 @@ func assertModuleCRD(t *testing.T, crd *unstructured.Unstructured, definition mo
 	t.Helper()
 	g := gomega.NewWithT(t)
 	g.Expect(crd).NotTo(gomega.BeNil())
-	g.Expect(crd.GetName()).To(gomega.Equal(definition.CRD))
+	g.Expect(crd.GetName()).To(gomega.Equal(definition.CRDName))
 
 	group, found, err := unstructured.NestedString(crd.Object, "spec", "group")
 	g.Expect(err).To(gomega.Succeed())
@@ -78,17 +86,17 @@ func assertModuleCRD(t *testing.T, crd *unstructured.Unstructured, definition mo
 	kind, found, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(found).To(gomega.BeTrue())
-	g.Expect(kind).To(gomega.Equal(definition.Kind))
+	g.Expect(kind).To(gomega.Equal(definition.GVK().Kind))
 
 	plural, found, err := unstructured.NestedString(crd.Object, "spec", "names", "plural")
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(found).To(gomega.BeTrue())
-	g.Expect(plural).To(gomega.Equal(definition.Resource()))
+	g.Expect(plural).To(gomega.Equal(definition.Plural))
 
 	singular, found, err := unstructured.NestedString(crd.Object, "spec", "names", "singular")
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(found).To(gomega.BeTrue())
-	g.Expect(singular).To(gomega.Equal(definition.Name))
+	g.Expect(singular).To(gomega.Equal(definition.Config.Metadata.Name))
 
 	versions, found, err := unstructured.NestedSlice(crd.Object, "spec", "versions")
 	g.Expect(err).To(gomega.Succeed())

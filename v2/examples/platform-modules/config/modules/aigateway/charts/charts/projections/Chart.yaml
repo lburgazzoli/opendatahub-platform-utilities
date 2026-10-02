@@ -1,0 +1,4 @@
+apiVersion: v2
+name: projections
+version: 0.1.0
+description: AI Gateway spec and status projections.

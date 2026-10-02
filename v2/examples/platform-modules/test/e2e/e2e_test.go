@@ -63,7 +63,7 @@ func TestPlatformAndServingOnKind(t *testing.T) {
 	startManager(t, platformManager)
 
 	servingManager := newManager(t, cluster.RESTConfig(), scheme)
-	g.Expect(serving.Setup(servingManager, registry, filepath.Join(root, "config", "charts"))).To(gomega.Succeed())
+	g.Expect(serving.Setup(servingManager, registry)).To(gomega.Succeed())
 	startManager(t, servingManager)
 
 	serving := createServing(t, kubeClient)
@@ -105,7 +105,7 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 
 	waitForModuleControllers(t, kubeClient, registry, image, "kserve")
 
-	kserve := kservev1alpha1.NewKserve()
+	kserve := new(kservev1alpha1.Kserve)
 	kserve.Name = v1alpha1.InstanceName
 	kserve.Spec.ManagementState = "Managed"
 	g.Eventually(func() error {
@@ -113,7 +113,7 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	}).WithContext(t.Context()).WithTimeout(2 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
 
 	g.Eventually(func(g gomega.Gomega) {
-		current := kservev1alpha1.NewKserve()
+		current := new(kservev1alpha1.Kserve)
 		g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: kserve.Name}, current)).To(gomega.Succeed())
 		g.Expect(condition.IsTrue(current.GetStatus(), string(platformapi.ConditionTypeReady))).To(gomega.BeTrue())
 		g.Expect(current.Status.ObservedGeneration).To(gomega.Equal(current.Generation))
@@ -134,7 +134,7 @@ func waitForModuleHealth(t *testing.T, kubeClient client.Client, healthy bool, m
 	t.Helper()
 	g := gomega.NewWithT(t)
 	g.Eventually(func(g gomega.Gomega) {
-		current := kservev1alpha1.NewKserve()
+		current := new(kservev1alpha1.Kserve)
 		key := types.NamespacedName{Name: v1alpha1.InstanceName}
 		g.Expect(kubeClient.Get(t.Context(), key, current)).To(gomega.Succeed())
 		g.Expect(condition.IsTrue(current.GetStatus(), string(platformapi.ConditionTypeReady))).To(gomega.Equal(healthy))
@@ -197,7 +197,7 @@ func assertModuleCRDsAbsent(t *testing.T, kubeClient client.Client, registry *mo
 	for _, name := range registry.Names() {
 		definition, _ := registry.Get(name)
 		crd := new(apiextensionsv1.CustomResourceDefinition)
-		err := kubeClient.Get(t.Context(), types.NamespacedName{Name: definition.CRD}, crd)
+		err := kubeClient.Get(t.Context(), types.NamespacedName{Name: definition.CRDName}, crd)
 		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
 	}
 }
@@ -220,7 +220,7 @@ func waitForKserveRemoval(t *testing.T, kubeClient client.Client) {
 	t.Helper()
 	g := gomega.NewWithT(t)
 	g.Eventually(func(g gomega.Gomega) {
-		kserve := kservev1alpha1.NewKserve()
+		kserve := new(kservev1alpha1.Kserve)
 		err := kubeClient.Get(t.Context(), types.NamespacedName{Name: v1alpha1.InstanceName}, kserve)
 		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
 
@@ -265,7 +265,7 @@ func waitForModuleControllers(
 		definition, _ := registry.Get(name)
 		g.Eventually(func(g gomega.Gomega) {
 			crd := new(apiextensionsv1.CustomResourceDefinition)
-			g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: definition.CRD}, crd)).To(gomega.Succeed())
+			g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: definition.CRDName}, crd)).To(gomega.Succeed())
 
 			module := v1alpha1.NewPlatformModule()
 			g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: name}, module)).To(gomega.Succeed())

@@ -1,0 +1,11 @@
+apiVersion: v2
+name: kserve-controller
+version: 0.1.0
+description: Installs the example Kserve CRD and module controller.
+dependencies:
+  - name: module
+    version: 0.1.0
+    condition: module.enabled
+  - name: projections
+    version: 0.1.0
+    condition: projections.enabled

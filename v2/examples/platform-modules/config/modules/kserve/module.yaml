@@ -1,7 +1,15 @@
-name: kserve
-crd: kserves.kserve.example.odh.io
-apiVersion: kserve.example.odh.io/v1alpha1
-kind: Kserve
-chart: ../../charts/module-controller
-values:
-  replicas: 1
+apiVersion: deployer.opendatahub.io/v1alpha1
+kind: PlatformModuleConfig
+metadata:
+  name: kserve
+spec:
+  moduleRef:
+    apiVersion: kserve.example.odh.io/v1alpha1
+    kind: Kserve
+    name: cluster
+  chart:
+    name: kserve-controller
+    path: charts
+    version: 0.1.0
+  config:
+    replicas: 1

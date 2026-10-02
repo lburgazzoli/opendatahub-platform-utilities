@@ -1,4 +1,0 @@
-apiVersion: v2
-name: example-module-controller
-version: 0.1.0
-description: Runs one generic module controller from the shared example image.

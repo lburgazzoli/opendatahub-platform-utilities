@@ -1,0 +1,16 @@
+{{- $source := .Values.input -}}
+{{- if and (eq $source.apiVersion "kserve.example.odh.io/v1alpha1") (eq $source.kind "Kserve") -}}
+{{- range $target := .Values.targets -}}
+{{- $object := $target.object -}}
+{{- if and (eq $object.apiVersion "example.platform.odh.io/v1alpha1") (eq $object.kind "Serving") }}
+---
+apiVersion: example.platform.odh.io/v1alpha1
+kind: Serving
+metadata:
+  name: {{ required "Serving target metadata.name is required" $object.metadata.name | quote }}
+status:
+  kserve:
+    ready: {{ and $.Values.exists (eq $target.managementState "Managed") $.Values.ready }}
+{{- end -}}
+{{- end -}}
+{{- end -}}

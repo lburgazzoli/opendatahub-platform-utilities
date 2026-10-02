@@ -1,7 +1,15 @@
-name: aigateway
-crd: aigateways.aigateway.example.odh.io
-apiVersion: aigateway.example.odh.io/v1alpha1
-kind: AIGateway
-chart: ../../charts/module-controller
-values:
-  replicas: 1
+apiVersion: deployer.opendatahub.io/v1alpha1
+kind: PlatformModuleConfig
+metadata:
+  name: aigateway
+spec:
+  moduleRef:
+    apiVersion: aigateway.example.odh.io/v1alpha1
+    kind: AIGateway
+    name: cluster
+  chart:
+    name: aigateway-controller
+    path: charts
+    version: 0.1.0
+  config:
+    replicas: 1

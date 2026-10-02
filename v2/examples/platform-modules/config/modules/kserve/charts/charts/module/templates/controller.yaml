@@ -1,60 +1,60 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: example-{{ .Values.name }}
+  name: example-kserve
   namespace: {{ .Values.namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: example-{{ .Values.name }}
+  name: example-kserve
 rules:
   - apiGroups: ["apiextensions.k8s.io"]
     resources: ["customresourcedefinitions"]
-    resourceNames: [{{ .Values.crd | quote }}]
+    resourceNames: ["kserves.kserve.example.odh.io"]
     verbs: ["get"]
-  - apiGroups: [{{ .Values.group | quote }}]
-    resources: [{{ .Values.resource | quote }}]
+  - apiGroups: ["kserve.example.odh.io"]
+    resources: ["kserves"]
     verbs: ["get", "list", "watch"]
-  - apiGroups: [{{ .Values.group | quote }}]
-    resources: [{{ printf "%s/status" .Values.resource | quote }}]
+  - apiGroups: ["kserve.example.odh.io"]
+    resources: ["kserves/status"]
     verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: example-{{ .Values.name }}
+  name: example-kserve
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: example-{{ .Values.name }}
+  name: example-kserve
 subjects:
   - kind: ServiceAccount
-    name: example-{{ .Values.name }}
+    name: example-kserve
     namespace: {{ .Values.namespace }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: example-{{ .Values.name }}
+  name: example-kserve
   namespace: {{ .Values.namespace }}
 spec:
-  replicas: {{ .Values.replicas | default 1 }}
+  replicas: {{ .Values.config.replicas | default 1 }}
   selector:
     matchLabels:
-      app: example-{{ .Values.name }}
+      app: example-kserve
   template:
     metadata:
       labels:
-        app: example-{{ .Values.name }}
+        app: example-kserve
     spec:
-      serviceAccountName: example-{{ .Values.name }}
+      serviceAccountName: example-kserve
       containers:
         - name: controller
           image: {{ .Values.image | quote }}
           imagePullPolicy: Always
           command: ["/manager"]
-          args: ["run", "module", {{ .Values.name | quote }}]
+          args: ["run", "module", "kserve"]
           env:
             - name: PLATFORM_MODULES_DIR
               value: /config/modules

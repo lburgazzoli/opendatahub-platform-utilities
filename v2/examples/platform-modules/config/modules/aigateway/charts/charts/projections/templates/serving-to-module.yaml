@@ -1,0 +1,16 @@
+{{- $source := .Values.input -}}
+{{- if and (eq $source.apiVersion "example.platform.odh.io/v1alpha1") (eq $source.kind "Serving") -}}
+{{- $component := default dict (index (default dict $source.spec) "maas") -}}
+{{- range $target := .Values.targets -}}
+{{- $object := $target.object -}}
+{{- if and (eq $object.apiVersion "aigateway.example.odh.io/v1alpha1") (eq $object.kind "AIGateway") }}
+---
+apiVersion: aigateway.example.odh.io/v1alpha1
+kind: AIGateway
+metadata:
+  name: {{ required "AIGateway target metadata.name is required" $object.metadata.name | quote }}
+spec:
+  managementState: {{ default "Removed" $component.managementState | quote }}
+{{- end -}}
+{{- end -}}
+{{- end -}}
