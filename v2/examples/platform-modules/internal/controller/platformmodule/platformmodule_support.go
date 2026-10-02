@@ -46,7 +46,7 @@ func (c *Controller) requireModuleCRRemoved(ctx context.Context, module *v1alpha
 	}
 }
 
-func deleteRecordedResources(ctx context.Context, kubeClient client.Client, refs []v1alpha1.ResourceRef) error {
+func (c *Controller) deleteRecordedResources(ctx context.Context, refs []v1alpha1.ResourceRef) error {
 	for _, ref := range refs {
 		object, err := objectFromRef(ref)
 		if err != nil {
@@ -56,7 +56,7 @@ func deleteRecordedResources(ctx context.Context, kubeClient client.Client, refs
 			continue
 		}
 
-		err = kubeClient.Delete(ctx, object, client.PropagationPolicy(metav1.DeletePropagationForeground))
+		err = c.writer.Delete(ctx, object, client.PropagationPolicy(metav1.DeletePropagationForeground))
 		switch {
 		case apierrors.IsNotFound(err):
 			continue

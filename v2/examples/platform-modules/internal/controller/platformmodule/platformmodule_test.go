@@ -100,7 +100,7 @@ func TestCleanupWaitsForConfiguredModuleCRAndRetainsNamespaceAndCRD(t *testing.T
 		{APIVersion: "v1", Kind: "ServiceAccount", Namespace: namespace.Name, Name: serviceAccount.Name},
 	}
 
-	controller := &Controller{registry: registry, reader: kubeClient}
+	controller := &Controller{registry: registry, reader: kubeClient, writer: kubeClient}
 	request := &pipeline.Request{Client: kubeClient, Instance: module, Resources: resources.New(nil)}
 
 	err = controller.cleanup(t.Context(), request)

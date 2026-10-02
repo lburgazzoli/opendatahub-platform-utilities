@@ -322,3 +322,6 @@ buildable; the v2 runtime must not depend on it.
 - [x] Made chart value conversion a standalone `ToValues(any)` function so
   conversion remains independent of `ChartValues`. The example's race tests,
   vet, formatter, e2e compilation, and pinned linter passed.
+- [x] Made recorded-resource deletion a `Controller` method backed by its
+  write client. The example's formatter, race tests, vet, e2e compilation,
+  pinned linter, and both Podman Kind scenarios passed.

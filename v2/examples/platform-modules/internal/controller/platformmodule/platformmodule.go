@@ -38,6 +38,7 @@ type Controller struct {
 	registry  *modules.Registry
 	renderers map[string]*manifestengine.Engine
 	reader    client.Reader
+	writer    client.Writer
 	image     string
 }
 
@@ -50,6 +51,7 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 		registry:  registry,
 		renderers: make(map[string]*manifestengine.Engine),
 		reader:    manager.GetAPIReader(),
+		writer:    manager.GetClient(),
 		image:     image,
 	}
 	for _, name := range registry.Names() {
@@ -211,7 +213,7 @@ func (c *Controller) cleanup(ctx context.Context, request *pipeline.Request) err
 		return fmt.Errorf("wait for module CR removal: %w", err)
 	}
 
-	err = deleteRecordedResources(ctx, request.Client, module.Status.Resources)
+	err = c.deleteRecordedResources(ctx, module.Status.Resources)
 	if err != nil {
 		return fmt.Errorf("delete recorded resources: %w", err)
 	}
