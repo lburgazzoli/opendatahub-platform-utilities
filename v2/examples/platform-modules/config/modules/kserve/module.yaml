@@ -1,0 +1,7 @@
+name: kserve
+crd: kserves.kserve.example.odh.io
+apiVersion: kserve.example.odh.io/v1alpha1
+kind: Kserve
+chart: ../../charts/module-controller
+values:
+  replicas: 1

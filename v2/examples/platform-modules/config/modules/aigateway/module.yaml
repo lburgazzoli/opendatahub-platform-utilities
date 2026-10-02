@@ -1,0 +1,7 @@
+name: aigateway
+crd: aigateways.aigateway.example.odh.io
+apiVersion: aigateway.example.odh.io/v1alpha1
+kind: AIGateway
+chart: ../../charts/module-controller
+values:
+  replicas: 1

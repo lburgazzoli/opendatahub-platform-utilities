@@ -1,0 +1,9 @@
+apiVersion: example.platform.odh.io/v1alpha1
+kind: Serving
+metadata:
+  name: cluster
+status:
+  kserve:
+    ready: {{ .Values.kserveReady }}
+  maas:
+    ready: {{ .Values.maasReady }}

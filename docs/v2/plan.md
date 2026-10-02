@@ -266,3 +266,22 @@ buildable; the v2 runtime must not depend on it.
   resource errors consistently while preserving the stop-on-error option.
   The v2 race suite, vet, and formatting checks passed; the pinned linter
   retained its 94 existing findings.
+
+## Post-closeout platform modules example
+
+- [x] The common `api.Status` now implements `ConditionsAccessor`; condition
+  producers and reconciler status processing use `GetStatus()`. Reconciliation
+  explicitly requeues after adding a finalizer because the primary predicate
+  ignores finalizer-only updates. `make -C v2 test`, `vet`, and `fmt` passed.
+  The pinned root v2 linter still reports its existing findings.
+- [x] The Kind Go engine can collect logs on startup or test failure. Its race
+  tests and pinned linter passed with zero findings.
+- [x] Added the multi-group Platform, Serving, Kserve, and AI Gateway example.
+  YAML module definitions supply the CRD identity and controller chart values;
+  one chart template derives each module CRD. All controllers use v2
+  `reconciler.For`, and Serving watches module GVKs after their CRDs appear.
+  The module controller uses `resources.GetAnnotation` to simulate failures.
+- [x] The example's generated APIs and reference CRDs, race tests, vet,
+  formatter, and pinned linter passed. The complete Podman Kind suite passed
+  both Platform/module and Serving flows in one process, including dynamic
+  CRD installation, readiness, simulated failure recovery, and module removal.

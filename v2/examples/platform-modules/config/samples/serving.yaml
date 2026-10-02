@@ -1,0 +1,9 @@
+apiVersion: example.platform.odh.io/v1alpha1
+kind: Serving
+metadata:
+  name: cluster
+spec:
+  kserve:
+    managementState: Managed
+  maas:
+    managementState: Managed

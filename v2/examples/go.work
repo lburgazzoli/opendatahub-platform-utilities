@@ -4,4 +4,5 @@ use (
 	..
 	../../testkit/kind
 	./helm-builder
+	./platform-modules
 )

@@ -1,0 +1,4 @@
+apiVersion: v2
+name: example-module-spec
+version: 0.1.0
+description: Projects Serving settings into a module custom resource.
