@@ -18,8 +18,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-const moduleValuesKey = "module"
-
 func moduleNamespace(name string) string {
 	return "opendatahub-" + name + "-system"
 }

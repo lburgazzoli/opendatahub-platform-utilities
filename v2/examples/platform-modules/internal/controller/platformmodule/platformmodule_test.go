@@ -4,7 +4,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-viper/mapstructure/v2"
 	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
 	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
 	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
@@ -121,7 +120,7 @@ func TestCleanupWaitsForConfiguredModuleCRAndRetainsNamespaceAndCRD(t *testing.T
 	g.Expect(module.Status.Resources[1].Name).To(gomega.Equal(definition.CRDName))
 }
 
-func TestModuleSpecMapstructureValues(t *testing.T) {
+func TestChartValuesToValues(t *testing.T) {
 	t.Parallel()
 	g := gomega.NewWithT(t)
 
@@ -133,22 +132,43 @@ func TestModuleSpecMapstructureValues(t *testing.T) {
 		Services:      []string{"example"},
 		Runlevel:      3,
 	}
-	values := make(map[string]any)
-	g.Expect(mapstructure.Decode(&spec, &values)).To(gomega.Succeed())
-	g.Expect(values).To(gomega.Equal(map[string]any{
-		"moduleRef":     map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
-		"chart":         map[string]any{"name": "example", "path": "charts", "version": "1.0.0"},
-		"relatedImages": []string{"example.io/controller:1.0.0"},
-		"config":        map[string]any{"replicas": 2},
-		"services":      []string{"example"},
-		"runlevel":      3,
+	configured := ChartValues{
+		Module: ModuleValues{
+			ModuleSpec: spec,
+			Namespace:  "opendatahub-example-system",
+			Image:      "example.io/controller:1.0.0",
+			Enabled:    true,
+		},
+		Projections: ProjectionValues{Enabled: false},
+	}
+	values, err := configured.ToValues()
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(values).To(gomega.Equal(manifesttypes.Values{
+		"module": map[string]any{
+			"moduleRef":     map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
+			"chart":         map[string]any{"name": "example", "path": "charts", "version": "1.0.0"},
+			"relatedImages": []string{"example.io/controller:1.0.0"},
+			"config":        map[string]any{"replicas": 2},
+			"services":      []string{"example"},
+			"runlevel":      3,
+			"namespace":     "opendatahub-example-system",
+			"image":         "example.io/controller:1.0.0",
+			"enabled":       true,
+		},
+		"projections": map[string]any{"enabled": false},
 	}))
 
-	minimal := modules.ModuleSpec{ModuleRef: spec.ModuleRef}
-	minimalValues := make(map[string]any)
-	g.Expect(mapstructure.Decode(&minimal, &minimalValues)).To(gomega.Succeed())
-	g.Expect(minimalValues).To(gomega.Equal(map[string]any{
-		"moduleRef": map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
+	minimal := ChartValues{Module: ModuleValues{ModuleSpec: modules.ModuleSpec{ModuleRef: spec.ModuleRef}}}
+	minimalValues, err := minimal.ToValues()
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(minimalValues).To(gomega.Equal(manifesttypes.Values{
+		"module": map[string]any{
+			"moduleRef": map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
+			"namespace": "",
+			"image":     "",
+			"enabled":   false,
+		},
+		"projections": map[string]any{"enabled": false},
 	}))
 }
 
@@ -169,18 +189,21 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 		})
 		g.Expect(err).To(gomega.Succeed())
 
-		moduleValues := make(map[string]any)
-		err = mapstructure.Decode(&definition.Config.Spec, &moduleValues)
+		spec := definition.Config.Spec
+		spec.Config = map[string]any{"replicas": 2}
+		configuredValues := ChartValues{
+			Module: ModuleValues{
+				ModuleSpec: spec,
+				Enabled:    true,
+				Namespace:  moduleNamespace(name),
+				Image:      "ttl.sh/example:24h",
+			},
+			Projections: ProjectionValues{Enabled: false},
+		}
+		values, err := configuredValues.ToValues()
 		g.Expect(err).To(gomega.Succeed())
-		moduleValues["config"] = map[string]any{"replicas": 2}
-		moduleValues["enabled"] = true
-		moduleValues["namespace"] = "opendatahub-" + name + "-system"
-		moduleValues["image"] = "ttl.sh/example:24h"
 
-		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(manifesttypes.Values{
-			moduleValuesKey: moduleValues,
-			"projections":   map[string]any{"enabled": false},
-		}))
+		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(values))
 		g.Expect(err).To(gomega.Succeed())
 		g.Expect(objects).To(gomega.HaveLen(6))
 

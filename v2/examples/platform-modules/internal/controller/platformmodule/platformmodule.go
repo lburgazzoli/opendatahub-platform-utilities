@@ -8,10 +8,8 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/go-viper/mapstructure/v2"
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
 	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
-	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
 	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
@@ -99,21 +97,21 @@ func (c *Controller) render(ctx context.Context, request *pipeline.Request) erro
 		return fmt.Errorf("%w: module %q is not configured", ErrInvalidPlatformModule, module.Spec.Module)
 	}
 
-	moduleValues := make(map[string]any)
-	decodeErr := mapstructure.Decode(&definition.Config.Spec, &moduleValues)
-	if decodeErr != nil {
-		return fmt.Errorf("convert module %q spec: %w", module.Spec.Module, decodeErr)
+	configuredValues := ChartValues{
+		Module: ModuleValues{
+			ModuleSpec: definition.Config.Spec,
+			Enabled:    true,
+			Namespace:  moduleNamespace(module.Spec.Module),
+			Image:      c.image,
+		},
+		Projections: ProjectionValues{
+			Enabled: false,
+		},
 	}
 
-	moduleValues["enabled"] = true
-	moduleValues["namespace"] = moduleNamespace(module.Spec.Module)
-	moduleValues["image"] = c.image
-
-	values := manifesttypes.Values{
-		moduleValuesKey: moduleValues,
-		"projections": map[string]any{
-			"enabled": false,
-		},
+	values, err := configuredValues.ToValues()
+	if err != nil {
+		return fmt.Errorf("convert module %q chart values: %w", module.Spec.Module, err)
 	}
 
 	rendered, err := c.renderers[module.Spec.Module].Render(ctx, manifestrender.WithValues(values))

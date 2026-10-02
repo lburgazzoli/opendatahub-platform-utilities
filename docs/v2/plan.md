@@ -314,3 +314,8 @@ buildable; the v2 runtime must not depend on it.
   and CRD references. Cleanup and inventory errors identify the failing step.
   The example's formatter, race tests, vet, e2e compilation, pinned linter,
   and both Podman Kind integration tests passed.
+- [x] Replaced string-keyed PlatformModule chart value assembly with exported
+  `ChartValues`, `ModuleValues`, and `ProjectionValues` types.
+  `ChartValues.ToValues()` converts the typed payload at the renderer boundary.
+  The exact value shape, chart rendering, formatter, race tests, vet, e2e
+  compilation, pinned linter, and both Podman Kind scenarios passed.
