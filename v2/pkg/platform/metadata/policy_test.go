@@ -23,12 +23,21 @@ func TestDefaultPolicyAppliesAndMatchesOwnerMetadata(t *testing.T) {
 	}}
 	owner.SetGroupVersionKind(schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Module"})
 
-	object := &metav1.PartialObjectMetadata{}
+	objectLabels := map[string]string{"example.io/existing": "label"}
+	annotations := map[string]string{"example.io/existing": "annotation"}
+	object := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{
+		Labels:      objectLabels,
+		Annotations: annotations,
+	}}
 	policy := metadata.DefaultPolicy()
 
 	g.Expect(policy.Apply(object, owner)).Should(Succeed())
+	g.Expect(object.GetLabels()).Should(HaveKeyWithValue("example.io/existing", "label"))
 	g.Expect(object.GetLabels()).Should(HaveKeyWithValue(platformlabels.PlatformPartOf, "module"))
+	g.Expect(object.GetAnnotations()).Should(HaveKeyWithValue("example.io/existing", "annotation"))
 	g.Expect(object.GetAnnotations()).Should(HaveKeyWithValue(platformannotations.InstanceGeneration, "3"))
+	g.Expect(objectLabels).ShouldNot(HaveKey(platformlabels.PlatformPartOf))
+	g.Expect(annotations).ShouldNot(HaveKey(platformannotations.InstanceGeneration))
 	g.Expect(policy.Matches(object, owner)).Should(BeTrue())
 	g.Expect(policy.Selector(owner).Matches(labels.Set(object.GetLabels()))).Should(BeTrue())
 

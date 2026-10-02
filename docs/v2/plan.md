@@ -217,3 +217,9 @@ buildable; the v2 runtime must not depend on it.
 - [x] Renamed the per-resource deployment helper to `deployResource` to describe
   its lookup, skip, customization, cache, and apply phases. The v2 race suite,
   vet, and formatting checks passed.
+- [x] Reused `resources.SetLabels` and `resources.SetAnnotations` in the default
+  metadata policy. The resource helpers now copy existing maps before merging,
+  preserving the policy's metadata map ownership behavior. Regression tests,
+  the v2 race suite, vet, and formatting checks passed. The pinned formatter
+  and linter remained unavailable because `proxy.golang.org` DNS failed; local
+  `gofmt` formatted the changed Go files.

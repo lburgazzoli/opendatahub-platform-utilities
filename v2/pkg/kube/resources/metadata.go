@@ -7,13 +7,13 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
-// SetLabels merges labels onto an object.
+// SetLabels merges labels onto an object without mutating its existing map.
 func SetLabels(object client.Object, values map[string]string) {
 	if object == nil || len(values) == 0 {
 		return
 	}
 
-	labels := object.GetLabels()
+	labels := maps.Clone(object.GetLabels())
 	if labels == nil {
 		labels = make(map[string]string, len(values))
 	}
@@ -22,13 +22,13 @@ func SetLabels(object client.Object, values map[string]string) {
 	object.SetLabels(labels)
 }
 
-// SetAnnotations merges annotations onto an object.
+// SetAnnotations merges annotations onto an object without mutating its existing map.
 func SetAnnotations(object client.Object, values map[string]string) {
 	if object == nil || len(values) == 0 {
 		return
 	}
 
-	annotations := object.GetAnnotations()
+	annotations := maps.Clone(object.GetAnnotations())
 	if annotations == nil {
 		annotations = make(map[string]string, len(values))
 	}

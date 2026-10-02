@@ -101,6 +101,28 @@ func TestMetadataHelpersSupportPresenceAndValueChecks(t *testing.T) {
 	g.Expect(resources.GetAnnotation(object, "example.io/key")).Should(Equal("value"))
 }
 
+func TestMetadataHelpersPreserveExistingMaps(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	labels := map[string]string{"example.io/existing": "label"}
+	annotations := map[string]string{"example.io/existing": "annotation"}
+	object := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{
+		Labels:      labels,
+		Annotations: annotations,
+	}}
+
+	resources.SetLabels(object, map[string]string{"example.io/new": "label"})
+	resources.SetAnnotations(object, map[string]string{"example.io/new": "annotation"})
+
+	g.Expect(object.GetLabels()).Should(HaveKeyWithValue("example.io/existing", "label"))
+	g.Expect(object.GetLabels()).Should(HaveKeyWithValue("example.io/new", "label"))
+	g.Expect(object.GetAnnotations()).Should(HaveKeyWithValue("example.io/existing", "annotation"))
+	g.Expect(object.GetAnnotations()).Should(HaveKeyWithValue("example.io/new", "annotation"))
+	g.Expect(labels).ShouldNot(HaveKey("example.io/new"))
+	g.Expect(annotations).ShouldNot(HaveKey("example.io/new"))
+}
+
 func TestIdentityAndDecode(t *testing.T) {
 	t.Parallel()
 

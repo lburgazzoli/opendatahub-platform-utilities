@@ -3,12 +3,12 @@ package metadata
 import (
 	"errors"
 	"fmt"
-	"maps"
 	"strconv"
 
 	"k8s.io/apimachinery/pkg/labels"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 	platformannotations "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 	platformlabels "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/labels"
 )
@@ -41,24 +41,16 @@ func (defaultPolicy) Apply(object client.Object, owner client.Object) error {
 		return err
 	}
 
-	objectLabels := maps.Clone(object.GetLabels())
-	if objectLabels == nil {
-		objectLabels = make(map[string]string, 1)
-	}
+	resources.SetLabels(object, map[string]string{
+		platformlabels.PlatformPartOf: values.partOf,
+	})
 
-	objectLabels[platformlabels.PlatformPartOf] = values.partOf
-	object.SetLabels(objectLabels)
-
-	objectAnnotations := maps.Clone(object.GetAnnotations())
-	if objectAnnotations == nil {
-		objectAnnotations = make(map[string]string, 4)
-	}
-
-	objectAnnotations[platformannotations.InstanceName] = values.name
-	objectAnnotations[platformannotations.InstanceNamespace] = values.namespace
-	objectAnnotations[platformannotations.InstanceUID] = values.uid
-	objectAnnotations[platformannotations.InstanceGeneration] = values.generation
-	object.SetAnnotations(objectAnnotations)
+	resources.SetAnnotations(object, map[string]string{
+		platformannotations.InstanceName:       values.name,
+		platformannotations.InstanceNamespace:  values.namespace,
+		platformannotations.InstanceUID:        values.uid,
+		platformannotations.InstanceGeneration: values.generation,
+	})
 
 	return nil
 }
