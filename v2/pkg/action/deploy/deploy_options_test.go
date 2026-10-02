@@ -2,12 +2,28 @@ package deploy_test
 
 import (
 	"testing"
+	"time"
 
 	. "github.com/onsi/gomega"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/option"
 )
+
+func TestWithCacheBooleanControlsSettings(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	settings := &deploy.CacheOptions{TTL: 5 * time.Minute, Disabled: true}
+	var configured deploy.Options
+
+	deploy.WithCache(true, settings).ApplyTo(&configured)
+	settings.TTL = time.Minute
+	g.Expect(configured.Cache).Should(Equal(&deploy.CacheOptions{TTL: 5 * time.Minute}))
+
+	deploy.WithCache(false).ApplyTo(&configured)
+	g.Expect(configured.Cache).Should(Equal(&deploy.CacheOptions{Disabled: true}))
+}
 
 func TestRunRejectsInvalidStableOptions(t *testing.T) {
 	t.Parallel()

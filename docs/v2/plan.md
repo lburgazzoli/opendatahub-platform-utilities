@@ -193,7 +193,7 @@ buildable; the v2 runtime must not depend on it.
 ## Post-closeout deploy update
 
 - [x] Deploy now enables its process-local cache by default, with an explicit
-  `WithoutCache` option and equivalent complete-struct configuration. Per-run
+  `WithCache(false)` option and equivalent complete-struct configuration. Per-run
   labels and annotations override constructor metadata before policy stamping
   and cache fingerprinting. `RunOptions.Merge` and `RunOptions.Validate` own
   invocation option composition and validation, and every run field has a
@@ -205,3 +205,8 @@ buildable; the v2 runtime must not depend on it.
   Kind test skipped because Docker was unavailable. The pinned formatter and
   linter remain blocked by unavailable `proxy.golang.org` DNS access; local
   `gofmt` formatted the changed Go files.
+- [x] The deploy cache option now takes an explicit enabled boolean:
+  `WithCache(false)` disables the default and `WithCache(true, settings)`
+  enables it with optional TTL settings. Focused option tests and the v2 race
+  suite, vet, and formatting checks passed; the pinned linter remained
+  unavailable because `proxy.golang.org` DNS resolution failed.

@@ -104,7 +104,7 @@ func TestRunCanDisableCache(t *testing.T) {
 		name   string
 		option deploy.Option
 	}{
-		{name: "functional option", option: deploy.WithoutCache()},
+		{name: "functional option", option: deploy.WithCache(false)},
 		{name: "complete option", option: deploy.Options{Cache: &deploy.CacheOptions{Disabled: true}}},
 	}
 

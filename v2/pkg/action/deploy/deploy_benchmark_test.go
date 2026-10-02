@@ -35,7 +35,7 @@ func benchmarkRun(b *testing.B) {
 				options := []Option(nil)
 
 				if !cached {
-					options = append(options, WithoutCache())
+					options = append(options, WithCache(false))
 				}
 
 				action := New(options...)
@@ -193,7 +193,7 @@ func BenchmarkRunNoOpClient(b *testing.B) {
 				if cached {
 					action = New()
 				} else {
-					action = New(WithoutCache())
+					action = New(WithCache(false))
 				}
 
 				if cached {

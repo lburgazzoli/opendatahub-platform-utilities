@@ -25,12 +25,12 @@ type CacheOptions struct {
 //
 //nolint:govet // field order follows the public option grouping and readability.
 type Options struct {
-	ContinueOnError      bool
-	MetadataPolicy       platformmetadata.Policy
-	FieldOwner           FieldOwnerFunc
-	Labels               map[string]string
-	Annotations          map[string]string
-	Sort                 SortFunc
+	ContinueOnError bool
+	MetadataPolicy  platformmetadata.Policy
+	FieldOwner      FieldOwnerFunc
+	Labels          map[string]string
+	Annotations     map[string]string
+	Sort            SortFunc
 	// Cache is enabled by default. A nil value in a complete Options value
 	// leaves the default unchanged; Disabled explicitly turns it off.
 	Cache                *CacheOptions
@@ -154,21 +154,16 @@ func WithSort(sort SortFunc) Option {
 // WithApplyOrder installs the default dependency ordering.
 func WithApplyOrder() Option { return WithSort(ApplyOrder) }
 
-// WithCache configures deploy caching. No argument uses the default TTL.
-func WithCache(values ...*CacheOptions) Option {
+// WithCache enables or disables deploy caching. Optional settings configure
+// the TTL; enabled takes precedence over their Disabled field.
+func WithCache(enabled bool, values ...*CacheOptions) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
-		cache := CacheOptions{}
+		cache := CacheOptions{Disabled: !enabled}
 		if len(values) > 0 && values[0] != nil {
 			cache = *values[0]
+			cache.Disabled = !enabled
 		}
 		options.Cache = &cache
-	})
-}
-
-// WithoutCache disables the process-local deploy cache.
-func WithoutCache() Option {
-	return option.FunctionalOption[Options](func(options *Options) {
-		options.Cache = &CacheOptions{Disabled: true}
 	})
 }
 
