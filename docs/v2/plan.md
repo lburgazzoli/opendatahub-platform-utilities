@@ -241,3 +241,6 @@ buildable; the v2 runtime must not depend on it.
   deploy options use the collection's canonical `resources.SortFunc`. The v2
   race suite, vet, and formatting checks passed; the pinned formatter and
   linter remained blocked by `proxy.golang.org` DNS.
+- [x] Retried the pinned v2 formatter and linter outside the sandbox. The
+  formatter passed without changing files. The linter ran and reported 93
+  findings in the current codebase; its download is no longer blocked.
