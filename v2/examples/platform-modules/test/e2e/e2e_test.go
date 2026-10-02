@@ -14,6 +14,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/lburgazzoli/gomega-matchers/pkg/matchers/jq"
+	k8sm "github.com/lburgazzoli/gomega-matchers/pkg/matchers/k8s"
 	"github.com/onsi/gomega"
 	kindtest "github.com/opendatahub-io/odh-platform-utilities/testkit/kind"
 	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
@@ -210,15 +212,15 @@ func assertModuleCRDsAbsent(t *testing.T, kubeClient client.Client, registry *mo
 func waitForServingStatus(t *testing.T, kubeClient client.Client, kserveReady bool) {
 	t.Helper()
 	g := gomega.NewWithT(t)
-	g.Eventually(func(g gomega.Gomega) {
-		current := v1alpha1.NewServing()
-		key := types.NamespacedName{Name: v1alpha1.InstanceName}
-		g.Expect(kubeClient.Get(t.Context(), key, current)).To(gomega.Succeed())
-		g.Expect(current.Status.Kserve).NotTo(gomega.BeNil())
-		g.Expect(current.Status.MaaS).NotTo(gomega.BeNil())
-		g.Expect(current.Status.Kserve.Ready).To(gomega.Equal(kserveReady))
-		g.Expect(current.Status.MaaS.Ready).To(gomega.BeTrue())
-	}).WithContext(t.Context()).WithTimeout(3 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
+	current := v1alpha1.NewServing()
+	current.Name = v1alpha1.InstanceName
+	g.Eventually(t.Context(), k8sm.Get(kubeClient, current)).
+		WithTimeout(3 * time.Minute).
+		WithPolling(time.Second).
+		Should(gomega.And(
+			jq.Matchf(`.status.kserve.ready == %t`, kserveReady),
+			jq.Match(`.status.maas.ready == true`),
+		))
 }
 
 func waitForKserveRemoval(t *testing.T, kubeClient client.Client, registry *modules.Registry) {

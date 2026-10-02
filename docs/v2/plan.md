@@ -325,3 +325,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] Made recorded-resource deletion a `Controller` method backed by its
   write client. The example's formatter, race tests, vet, e2e compilation,
   pinned linter, and both Podman Kind scenarios passed.
+- [x] Added `gomega-matchers@main` to the example tests and used its Kubernetes
+  getter and jq matchers for Serving status polling. The example's formatter,
+  race tests, vet, e2e compilation, pinned linter, and both Podman Kind
+  scenarios passed.
