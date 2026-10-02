@@ -253,3 +253,8 @@ buildable; the v2 runtime must not depend on it.
   The v2 race suite and vet passed. The changed Go files were formatted;
   repository formatting is held by a separate in-progress deploy edit. The
   pinned linter reported no findings in the identity code.
+- [x] Changed `resources.Identity.String()` to a
+  `group/version/kind/namespace/name` path, omitting the namespace segment
+  for cluster-scoped resources. The v2 race suite and vet passed; the changed
+  Go files are formatted. The pinned linter reported no findings in the
+  identity files, with 98 existing findings elsewhere.

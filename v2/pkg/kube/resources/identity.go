@@ -24,9 +24,14 @@ type Identity struct {
 	Name      string
 }
 
-// String returns the namespace, name, and GVK of the resource.
+// String returns the group, version, kind, optional namespace, and name as a path.
 func (identity Identity) String() string {
-	return fmt.Sprintf("%s/%s %s", identity.Namespace, identity.Name, identity.GVK)
+	path := identity.GVK.GroupVersion().String() + "/" + identity.GVK.Kind
+	if identity.Namespace != "" {
+		path += "/" + identity.Namespace
+	}
+
+	return path + "/" + identity.Name
 }
 
 // IdentityOf returns the validated identity of an object.

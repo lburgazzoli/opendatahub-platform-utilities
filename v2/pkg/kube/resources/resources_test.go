@@ -175,7 +175,7 @@ func TestIdentityString(t *testing.T) {
 				Namespace: "namespace",
 				Name:      "object",
 			},
-			expected: "namespace/object example.io/v1, Kind=Object",
+			expected: "example.io/v1/Object/namespace/object",
 		},
 		{
 			name: "cluster scoped",
@@ -183,7 +183,7 @@ func TestIdentityString(t *testing.T) {
 				GVK:  schema.GroupVersionKind{Version: "v1", Kind: "Namespace"},
 				Name: "object",
 			},
-			expected: "/object /v1, Kind=Namespace",
+			expected: "v1/Namespace/object",
 		},
 	}
 
