@@ -36,6 +36,7 @@ type Accessor interface {
 	Len() int
 	Get() List
 	Set(objects List)
+	Sort(sorter SortFunc)
 	SetAt(index int, object unstructured.Unstructured) error
 	Append(objects ...unstructured.Unstructured)
 	Filter(predicate Predicate) int
@@ -76,6 +77,13 @@ func (c *Collection) Get() List {
 // Set replaces the collection list with a shallow copy.
 func (c *Collection) Set(objects List) {
 	c.objects = slices.Clone(objects)
+}
+
+// Sort reorders the current collection in place.
+func (c *Collection) Sort(sorter SortFunc) {
+	if sorter != nil {
+		sorter(c.objects)
+	}
 }
 
 // SetAt replaces one object without changing collection structure.

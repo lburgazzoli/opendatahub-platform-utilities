@@ -244,3 +244,7 @@ buildable; the v2 runtime must not depend on it.
 - [x] Retried the pinned v2 formatter and linter outside the sandbox. The
   formatter passed without changing files. The linter ran and reported 93
   findings in the current codebase; its download is no longer blocked.
+- [x] Added in-place sorting to `resources.Accessor` and `resources.Collection`,
+  allowing deploy to order the collection without a `Get`/`Set` round trip. The
+  v2 race suite, vet, formatting checks, and pinned formatter passed. The
+  pinned linter ran and reported 94 current-codebase findings.

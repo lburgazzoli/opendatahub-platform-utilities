@@ -53,9 +53,7 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 		a.cache.Sync()
 	}
 
-	objects := ro.Resources.Get()
-	a.options.Sort(objects)
-	ro.Resources.Set(objects)
+	ro.Resources.Sort(a.options.Sort)
 
 	result := Result{}
 	var runErrors []error

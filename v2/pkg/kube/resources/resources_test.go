@@ -2,6 +2,7 @@ package resources_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
 	. "github.com/onsi/gomega"
@@ -63,6 +64,22 @@ func TestCollectionLen(t *testing.T) {
 	})
 
 	g.Expect(collection.Len()).Should(Equal(2))
+}
+
+func TestCollectionSortsWithoutChangingCallerSlice(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	initial := resources.List{
+		{Object: map[string]any{"metadata": map[string]any{"name": "first"}}},
+		{Object: map[string]any{"metadata": map[string]any{"name": "second"}}},
+	}
+	collection := resources.New(initial)
+
+	collection.Sort(func(objects resources.List) { slices.Reverse(objects) })
+
+	g.Expect(collection.Get()[0].GetName()).Should(Equal("second"))
+	g.Expect(initial[0].GetName()).Should(Equal("first"))
 }
 
 func TestCollectionTransformIsAtomic(t *testing.T) {
