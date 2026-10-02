@@ -10,12 +10,14 @@ import (
 )
 
 var (
-	ErrRunInputRequired  = errors.New("deploy run input is required")
+	ErrRunInputRequired = errors.New("deploy run input is required")
+	ErrActionRequired   = errors.New("deploy action is required")
+	ErrMetadataPolicy   = errors.New("deploy metadata policy is required")
+	ErrFieldOwner       = errors.New("deploy field owner is required")
+	ErrSort             = errors.New("deploy sort function is required")
+	// ErrDuplicateIdentity remains for source compatibility; Run processes
+	// duplicate identities in order.
 	ErrDuplicateIdentity = errors.New("duplicate resource identity")
-	ErrActionRequired    = errors.New("deploy action is required")
-	ErrMetadataPolicy    = errors.New("deploy metadata policy is required")
-	ErrFieldOwner        = errors.New("deploy field owner is required")
-	ErrSort              = errors.New("deploy sort function is required")
 )
 
 // CustomizerFunc can modify an object immediately before it is applied. The

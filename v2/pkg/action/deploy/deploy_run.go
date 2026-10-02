@@ -6,7 +6,6 @@ import (
 	"fmt"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/sets"
 
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
@@ -37,7 +36,7 @@ func (a *Action) Validate() error {
 	return nil
 }
 
-// Run normalizes, decorates, and applies the desired resources.
+// Run decorates and applies the desired resources.
 func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	err := a.Validate()
 	if err != nil {
@@ -54,16 +53,28 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 		a.cache.Sync()
 	}
 
-	objects, err := a.prepare(runOptions)
-	if err != nil {
-		return Result{}, err
-	}
+	objects := runOptions.Resources.Get()
+	a.options.Sort(objects)
+	defer runOptions.Resources.Set(objects)
 
 	result := Result{}
 	var runErrors []error
 	for index := range objects {
-		object := &objects[index]
-		applied, err := a.deployResource(ctx, runOptions, object)
+		object := objects[index].DeepCopy()
+		resources.SetLabels(object, a.options.Labels)
+		resources.SetAnnotations(object, a.options.Annotations)
+		resources.SetLabels(object, runOptions.Labels)
+		resources.SetAnnotations(object, runOptions.Annotations)
+
+		var applied bool
+		err := a.options.MetadataPolicy.Apply(object, runOptions.Owner)
+		if err != nil {
+			err = fmt.Errorf("decorate %s/%s %s: %w", object.GetNamespace(), object.GetName(), object.GroupVersionKind(), err)
+		} else {
+			objects[index] = *object
+			applied, err = a.deploy(ctx, runOptions, object)
+		}
+
 		switch {
 		case err != nil:
 			wrapped := fmt.Errorf("deploy %s: %w", object.GetObjectKind().GroupVersionKind(), err)
@@ -82,14 +93,14 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	return result, errors.Join(runErrors...)
 }
 
-// deployResource processes a desired object through lookup, policy, customization,
-// cache evaluation, and server-side apply.
-func (a *Action) deployResource(
+// deploy processes a decorated object through lookup, ownership,
+// customization, cache evaluation, and server-side apply.
+func (a *Action) deploy(
 	ctx context.Context,
 	values RunOptions,
 	object *unstructured.Unstructured,
 ) (bool, error) {
-	// Resolve the desired and current objects before applying any policy.
+	// Resolve the desired and current objects before ownership and customization.
 	desired := object.DeepCopy()
 
 	current, err := a.lookupCurrent(ctx, values.Client, desired)
@@ -146,39 +157,4 @@ func (a *Action) deployResource(
 	}
 
 	return true, nil
-}
-
-func (a *Action) prepare(values RunOptions) (resources.List, error) {
-	seen := sets.New[resources.Identity]()
-
-	objects := make(resources.List, 0, values.Resources.Len())
-	for _, res := range values.Resources.All() {
-		object := res.DeepCopy()
-		objects = append(objects, *object)
-
-		identity, err := resources.IdentityOf(object, values.Client.Scheme())
-		switch {
-		case err != nil:
-			return nil, fmt.Errorf("identify resource: %w", err)
-		case seen.Has(identity):
-			return nil, fmt.Errorf("%w: %s/%s %s", ErrDuplicateIdentity, identity.Namespace, identity.Name, identity.GVK)
-		default:
-			seen.Insert(identity)
-		}
-
-		resources.SetLabels(object, a.options.Labels)
-		resources.SetAnnotations(object, a.options.Annotations)
-		resources.SetLabels(object, values.Labels)
-		resources.SetAnnotations(object, values.Annotations)
-
-		err = a.options.MetadataPolicy.Apply(object, values.Owner)
-		if err != nil {
-			return nil, fmt.Errorf("decorate %s/%s %s: %w", object.GetNamespace(), object.GetName(), identity.GVK, err)
-		}
-	}
-
-	a.options.Sort(objects)
-	values.Resources.Set(objects)
-
-	return objects, nil
 }

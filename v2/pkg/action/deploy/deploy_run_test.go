@@ -1,6 +1,8 @@
 package deploy_test
 
 import (
+	"context"
+	"slices"
 	"testing"
 
 	corev1 "k8s.io/api/core/v1"
@@ -63,7 +65,43 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	g.Expect(metav1.IsControlledBy(stored, owner)).Should(BeTrue())
 }
 
-func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
+func TestRunSortsBeforeDeploying(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	scheme := runtime.NewScheme()
+	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
+	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "owner", Namespace: "ns", UID: "owner-uid"}}
+	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+	first := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "first", Namespace: "ns"}}
+	second := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "second", Namespace: "ns"}}
+	collection := resources.New(resourceList(t, scheme, first, second))
+
+	var deployed []string
+	action := deploy.New(
+		deploy.WithSort(func(objects resources.List) { slices.Reverse(objects) }),
+		deploy.WithApplyCustomizer(corev1.SchemeGroupVersion.WithKind("ConfigMap"), func(
+			_ context.Context,
+			_ client.Client,
+			desired *unstructured.Unstructured,
+			_ *unstructured.Unstructured,
+		) error {
+			deployed = append(deployed, desired.GetName())
+			return nil
+		}),
+	)
+
+	result, err := action.Run(t.Context(), deploy.RunOptions{
+		Client: kubernetesClient, Owner: owner, Resources: collection,
+	})
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.Applied).Should(Equal(2))
+	g.Expect(deployed).Should(Equal([]string{"second", "first"}))
+	g.Expect(collection.Get()[0].GetName()).Should(Equal("second"))
+}
+
+func TestRunPublishesDecoratedObjectsAfterLaterDeployFailure(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -81,10 +119,11 @@ func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
 	}}
 	collection := resources.New(resourceList(t, scheme, first, second))
 
-	_, err := deploy.New(deploy.WithLabel("example.io/test", "true")).Run(t.Context(), deploy.RunOptions{
+	result, err := deploy.New(deploy.WithLabel("example.io/test", "true")).Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
 	})
-	g.Expect(err).Should(MatchError(ContainSubstring("identify resource")))
+	g.Expect(err).Should(HaveOccurred())
+	g.Expect(result.Applied).Should(Equal(1))
 	g.Expect(first.GetObjectKind().GroupVersionKind()).Should(BeZero())
 	g.Expect(first.GetLabels()).Should(BeEmpty())
 	g.Expect(first.GetAnnotations()).Should(BeEmpty())
@@ -92,5 +131,9 @@ func TestRunDoesNotPublishPreparedObjectsAfterValidationFailure(t *testing.T) {
 	published := collection.Get()
 	g.Expect(published).Should(HaveLen(2))
 	g.Expect(published[0].GetName()).Should(Equal(first.GetName()))
+	g.Expect(published[0].GetLabels()).Should(HaveKeyWithValue("example.io/test", "true"))
+	g.Expect(published[0].GetAnnotations()).Should(HaveKeyWithValue(annotations.InstanceUID, "owner-uid"))
 	g.Expect(published[1].GetName()).Should(Equal(second.GetName()))
+	g.Expect(published[1].GetLabels()).Should(HaveKeyWithValue("example.io/test", "true"))
+	g.Expect(published[1].GetAnnotations()).Should(HaveKeyWithValue(annotations.InstanceUID, "owner-uid"))
 }

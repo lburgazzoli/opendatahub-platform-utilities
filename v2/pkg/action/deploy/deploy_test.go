@@ -55,7 +55,7 @@ func TestRunSkipsExistingManagedResource(t *testing.T) {
 	g.Expect(result.Skipped).Should(Equal(1))
 }
 
-func TestRunRejectsDuplicateIdentity(t *testing.T) {
+func TestRunAcceptsDuplicateIdentity(t *testing.T) {
 	t.Parallel()
 
 	g := NewWithT(t)
@@ -71,10 +71,11 @@ func TestRunRejectsDuplicateIdentity(t *testing.T) {
 	second := first.DeepCopy()
 	collection := resources.New(resourceList(t, scheme, first, second))
 
-	_, err := deploy.New().Run(t.Context(), deploy.RunOptions{
+	result, err := deploy.New(deploy.WithCache(false)).Run(t.Context(), deploy.RunOptions{
 		Client: kubernetesClient, Owner: owner, Resources: collection,
 	})
-	g.Expect(err).Should(MatchError(ContainSubstring("duplicate resource identity")))
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.Applied).Should(Equal(2))
 }
 
 func TestExecuteUsesRunContract(t *testing.T) {

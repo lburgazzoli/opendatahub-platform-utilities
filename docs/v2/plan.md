@@ -227,3 +227,8 @@ buildable; the v2 runtime must not depend on it.
   owner-derived annotation, requiring keys to exist even when the expected
   owner value is empty. The v2 race suite, vet, and formatting checks passed;
   the pinned formatter and linter remained blocked by `proxy.golang.org` DNS.
+- [x] Deploy now sorts before its single run loop, decorates each resource in
+  that loop, accepts duplicate identities, and uses `deploy` for per-resource
+  apply. The separate preparation pass, identity calculation, and preparation
+  benchmark were removed. The v2 race suite, vet, and formatting checks passed;
+  the pinned formatter and linter remained blocked by `proxy.golang.org` DNS.

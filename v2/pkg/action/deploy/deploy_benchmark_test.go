@@ -71,34 +71,6 @@ func benchmarkRun(b *testing.B) {
 	}
 }
 
-func BenchmarkPrepare(b *testing.B) {
-	for _, count := range []int{1, 10, 100} {
-		b.Run(fmt.Sprintf("resources-%d", count), func(b *testing.B) {
-			scheme := benchmarkScheme(b)
-			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
-			owner := benchmarkOwner()
-			objects := benchmarkObjects(count)
-			action := New()
-
-			b.ReportAllocs()
-			b.ResetTimer()
-
-			for b.Loop() {
-				collection := resources.New(objects)
-				_, err := action.prepare(RunOptions{
-					Client:    kubernetesClient,
-					Owner:     owner,
-					Resources: collection,
-				})
-				if err != nil {
-					b.Fatal(err)
-				}
-			}
-			b.ReportMetric(float64(count), "resources/op")
-		})
-	}
-}
-
 func BenchmarkCacheHas(b *testing.B) {
 	for _, count := range []int{1, 10, 100} {
 		b.Run(fmt.Sprintf("resources-%d", count), func(b *testing.B) {
