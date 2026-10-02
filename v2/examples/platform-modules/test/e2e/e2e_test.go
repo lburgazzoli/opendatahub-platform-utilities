@@ -135,6 +135,33 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	delete(kserve.Annotations, module.SimulationAnnotation)
 	g.Expect(kubeClient.Update(t.Context(), kserve)).To(gomega.Succeed())
 	waitForModuleHealth(t, kubeClient, true, "")
+
+	removeSelectedModule(t, kubeClient, instance, kserve, registry)
+}
+
+func removeSelectedModule(
+	t *testing.T,
+	kubeClient client.Client,
+	instance *v1alpha1.Platform,
+	kserve *kservev1alpha1.Kserve,
+	registry *modules.Registry,
+) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: instance.Name}, instance)).To(gomega.Succeed())
+	instance.Spec.Modules = nil
+	g.Expect(kubeClient.Update(t.Context(), instance)).To(gomega.Succeed())
+
+	platformModule := v1alpha1.NewPlatformModule()
+	platformModule.Name = "kserve"
+	g.Eventually(t.Context(), k8sm.Get(kubeClient, platformModule)).
+		WithTimeout(2 * time.Minute).
+		WithPolling(time.Second).
+		Should(jq.Match(`.metadata.deletionTimestamp != null`))
+
+	g.Expect(kubeClient.Delete(t.Context(), kserve)).To(gomega.Succeed())
+	waitForKserveRemoval(t, kubeClient, registry)
 }
 
 func waitForModuleHealth(t *testing.T, kubeClient client.Client, healthy bool, message string) {

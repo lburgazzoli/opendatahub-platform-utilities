@@ -332,3 +332,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] Inlined the typed chart values in the `ToValues` call. The example's
   formatter, race tests, vet, e2e compilation, pinned linter, and both Podman
   Kind scenarios passed with this change.
+- [x] Limited the Platform controller to managing PlatformModules: it renders
+  selected modules and explicitly deletes modules absent from `spec.modules`
+  on reconciliation. Removed its generic GC action. Unit tests, formatter,
+  vet, pinned linter, and both Podman Kind scenarios passed, including the
+  PlatformModule deletion and finalizer lifecycle.

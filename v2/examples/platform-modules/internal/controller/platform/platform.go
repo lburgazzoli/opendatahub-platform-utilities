@@ -10,10 +10,13 @@ import (
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/deploy"
-	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action/gc"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/pipeline"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/sets"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 )
 
@@ -38,14 +41,14 @@ func Setup(manager manager.Manager, registry *modules.Registry) error {
 		Owns(v1alpha1.NewPlatformModule()).
 		WithActionFunc(controller.render).
 		WithAction(deploy.New()).
-		WithAction(gc.New(gc.StaticDiscovery(v1alpha1.PlatformModuleGVK))).
+		WithActionFunc(controller.pruneModules).
 		Build()
 }
 
 func (c *PlatformController) render(_ context.Context, request *pipeline.Request) error {
 	platform, err := reconciler.Instance[*v1alpha1.Platform](request)
 	if err != nil {
-		return err
+		return fmt.Errorf("get Platform for rendering: %w", err)
 	}
 
 	objects := make(resources.List, 0, len(platform.Spec.Modules))
@@ -67,6 +70,37 @@ func (c *PlatformController) render(_ context.Context, request *pipeline.Request
 	}
 
 	request.Resources.Set(objects)
+
+	return nil
+}
+
+func (c *PlatformController) pruneModules(ctx context.Context, request *pipeline.Request) error {
+	platform, err := reconciler.Instance[*v1alpha1.Platform](request)
+	if err != nil {
+		return fmt.Errorf("get Platform for pruning: %w", err)
+	}
+
+	moduleList := new(v1alpha1.PlatformModuleList)
+	err = request.Client.List(ctx, moduleList)
+	if err != nil {
+		return fmt.Errorf("list PlatformModules: %w", err)
+	}
+
+	selected := sets.New(platform.Spec.Modules...)
+	for index := range moduleList.Items {
+		module := &moduleList.Items[index]
+		if selected.Has(module.Name) || !module.DeletionTimestamp.IsZero() {
+			continue
+		}
+
+		err = request.Client.Delete(ctx, module, client.PropagationPolicy(metav1.DeletePropagationForeground))
+		switch {
+		case apierrors.IsNotFound(err):
+			continue
+		case err != nil:
+			return fmt.Errorf("delete PlatformModule %q: %w", module.Name, err)
+		}
+	}
 
 	return nil
 }
