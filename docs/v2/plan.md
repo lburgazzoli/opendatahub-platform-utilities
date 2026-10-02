@@ -223,3 +223,7 @@ buildable; the v2 runtime must not depend on it.
   the v2 race suite, vet, and formatting checks passed. The pinned formatter
   and linter remained unavailable because `proxy.golang.org` DNS failed; local
   `gofmt` formatted the changed Go files.
+- [x] The default policy now uses `resources.HasAnnotation` to match each
+  owner-derived annotation, requiring keys to exist even when the expected
+  owner value is empty. The v2 race suite, vet, and formatting checks passed;
+  the pinned formatter and linter remained blocked by `proxy.golang.org` DNS.

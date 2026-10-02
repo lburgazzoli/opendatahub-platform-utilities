@@ -75,10 +75,10 @@ func (policy defaultPolicy) Matches(object client.Object, owner client.Object) b
 	}
 
 	return policy.Selector(owner).Matches(labels.Set(object.GetLabels())) &&
-		object.GetAnnotations()[platformannotations.InstanceName] == values.name &&
-		object.GetAnnotations()[platformannotations.InstanceNamespace] == values.namespace &&
-		object.GetAnnotations()[platformannotations.InstanceUID] == values.uid &&
-		object.GetAnnotations()[platformannotations.InstanceGeneration] == values.generation
+		resources.HasAnnotation(object, platformannotations.InstanceName, values.name) &&
+		resources.HasAnnotation(object, platformannotations.InstanceNamespace, values.namespace) &&
+		resources.HasAnnotation(object, platformannotations.InstanceUID, values.uid) &&
+		resources.HasAnnotation(object, platformannotations.InstanceGeneration, values.generation)
 }
 
 type composedPolicy struct{ policies []Policy }

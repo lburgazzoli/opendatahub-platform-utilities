@@ -45,6 +45,24 @@ func TestDefaultPolicyAppliesAndMatchesOwnerMetadata(t *testing.T) {
 	g.Expect(policy.Matches(object, owner)).Should(BeFalse())
 }
 
+func TestDefaultPolicyRequiresEmptyValuedAnnotation(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	owner := &metav1.PartialObjectMetadata{ObjectMeta: metav1.ObjectMeta{Name: "owner", UID: "uid"}}
+	owner.SetGroupVersionKind(schema.GroupVersionKind{Version: "v1", Kind: "Module"})
+
+	object := &metav1.PartialObjectMetadata{}
+	policy := metadata.DefaultPolicy()
+
+	g.Expect(policy.Apply(object, owner)).Should(Succeed())
+	g.Expect(object.GetAnnotations()).Should(HaveKeyWithValue(platformannotations.InstanceNamespace, ""))
+	g.Expect(policy.Matches(object, owner)).Should(BeTrue())
+
+	delete(object.GetAnnotations(), platformannotations.InstanceNamespace)
+	g.Expect(policy.Matches(object, owner)).Should(BeFalse())
+}
+
 func TestComposedPolicyIntersectsSelectorsAndVerifiesMatches(t *testing.T) {
 	t.Parallel()
 
