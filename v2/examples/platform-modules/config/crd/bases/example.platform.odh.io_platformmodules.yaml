@@ -118,6 +118,9 @@ spec:
                 type: array
             type: object
         type: object
+        x-kubernetes-validations:
+        - message: name must equal module
+          rule: self.metadata.name == self.spec.module
     served: true
     storage: true
     subresources:

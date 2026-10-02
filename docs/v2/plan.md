@@ -307,3 +307,10 @@ buildable; the v2 runtime must not depend on it.
   and those resources are never pruned or deleted. Generated API artifacts,
   race tests, vet, e2e compilation, the pinned formatter and linter, and both
   Podman Kind integration tests passed.
+- [x] Consolidated PlatformModule chart tests, enforced the module name match
+  in its CRD, and decoded module specs into chart values with mapstructure
+  tags. PlatformModule resource inventory checks now use Kubernetes sets;
+  status inventory is deduplicated and sorted while retaining past Namespace
+  and CRD references. Cleanup and inventory errors identify the failing step.
+  The example's formatter, race tests, vet, e2e compilation, pinned linter,
+  and both Podman Kind integration tests passed.

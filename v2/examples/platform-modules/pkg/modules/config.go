@@ -32,25 +32,26 @@ type ModuleMetadata struct {
 	Name string `json:"name" yaml:"name"`
 }
 
+//nolint:lll // The module spec declares tags for three wire formats.
 type ModuleSpec struct {
-	ModuleRef     ModuleRef      `json:"moduleRef"               yaml:"moduleRef"`
-	Chart         ChartSpec      `json:"chart,omitzero"          yaml:"chart,omitempty"`
-	RelatedImages []string       `json:"relatedImages,omitempty" yaml:"relatedImages,omitempty"`
-	Config        map[string]any `json:"config,omitempty"        yaml:"config,omitempty"`
-	Services      []string       `json:"services,omitempty"      yaml:"services,omitempty"`
-	Runlevel      int            `json:"runlevel,omitzero"       yaml:"runlevel,omitempty"`
+	ModuleRef     ModuleRef      `json:"moduleRef"               mapstructure:"moduleRef"               yaml:"moduleRef"`
+	Chart         ChartSpec      `json:"chart,omitzero"          mapstructure:"chart,omitzero"          yaml:"chart,omitempty"`
+	RelatedImages []string       `json:"relatedImages,omitempty" mapstructure:"relatedImages,omitempty" yaml:"relatedImages,omitempty"`
+	Config        map[string]any `json:"config,omitempty"        mapstructure:"config,omitempty"        yaml:"config,omitempty"`
+	Services      []string       `json:"services,omitempty"      mapstructure:"services,omitempty"      yaml:"services,omitempty"`
+	Runlevel      int            `json:"runlevel,omitzero"       mapstructure:"runlevel,omitzero"       yaml:"runlevel,omitempty"`
 }
 
 type ModuleRef struct {
-	APIVersion string `json:"apiVersion" yaml:"apiVersion"`
-	Kind       string `json:"kind"       yaml:"kind"`
-	Name       string `json:"name"       yaml:"name"`
+	APIVersion string `json:"apiVersion" mapstructure:"apiVersion" yaml:"apiVersion"`
+	Kind       string `json:"kind"       mapstructure:"kind"       yaml:"kind"`
+	Name       string `json:"name"       mapstructure:"name"       yaml:"name"`
 }
 
 type ChartSpec struct {
-	Name    string `json:"name,omitempty"    yaml:"name,omitempty"`
-	Path    string `json:"path,omitempty"    yaml:"path,omitempty"`
-	Version string `json:"version,omitempty" yaml:"version,omitempty"`
+	Name    string `json:"name,omitempty"    mapstructure:"name,omitempty"    yaml:"name,omitempty"`
+	Path    string `json:"path,omitempty"    mapstructure:"path,omitempty"    yaml:"path,omitempty"`
+	Version string `json:"version,omitempty" mapstructure:"version,omitempty" yaml:"version,omitempty"`
 }
 
 // LoadConfigFile reads and validates one deployer-compatible module config.

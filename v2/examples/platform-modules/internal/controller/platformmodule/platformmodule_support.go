@@ -18,6 +18,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+const moduleValuesKey = "module"
+
 func moduleNamespace(name string) string {
 	return "opendatahub-" + name + "-system"
 }
@@ -50,7 +52,7 @@ func deleteRecordedResources(ctx context.Context, kubeClient client.Client, refs
 	for _, ref := range refs {
 		object, err := objectFromRef(ref)
 		if err != nil {
-			return err
+			return fmt.Errorf("decode resource %q for deletion: %w", ref.Name, err)
 		}
 		if retainedResource(object.GroupVersionKind()) {
 			continue
@@ -72,7 +74,7 @@ func (c *Controller) checkRecordedResourcesRemoved(ctx context.Context, refs []v
 	for _, ref := range refs {
 		object, err := objectFromRef(ref)
 		if err != nil {
-			return err
+			return fmt.Errorf("decode resource %q to check deletion: %w", ref.Name, err)
 		}
 		if retainedResource(object.GroupVersionKind()) {
 			continue

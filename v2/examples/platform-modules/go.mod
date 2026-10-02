@@ -3,6 +3,7 @@ module github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-mod
 go 1.26.8
 
 require (
+	github.com/go-viper/mapstructure/v2 v2.4.0
 	github.com/k8s-manifest-kit/engine v0.2.1-0.20260903115827-d00cdfa2b407
 	github.com/k8s-manifest-kit/renderer-helm v0.4.1-0.20260903122908-65b242c8d564
 	github.com/onsi/gomega v1.43.0

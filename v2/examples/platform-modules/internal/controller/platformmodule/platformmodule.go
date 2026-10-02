@@ -6,7 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
+	"github.com/go-viper/mapstructure/v2"
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
 	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
 	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
@@ -20,7 +22,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
@@ -89,28 +91,29 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 func (c *Controller) render(ctx context.Context, request *pipeline.Request) error {
 	module, err := reconciler.Instance[*v1alpha1.PlatformModule](request)
 	if err != nil {
-		return err
+		return fmt.Errorf("get PlatformModule for rendering: %w", err)
 	}
 
 	definition, found := c.registry.Get(module.Spec.Module)
 	if !found {
 		return fmt.Errorf("%w: module %q is not configured", ErrInvalidPlatformModule, module.Spec.Module)
 	}
-	if module.Name != module.Spec.Module {
-		return fmt.Errorf("%w: %q must be named %q", ErrInvalidPlatformModule, module.Name, module.Spec.Module)
+
+	moduleValues := make(map[string]any)
+	decodeErr := mapstructure.Decode(&definition.Config.Spec, &moduleValues)
+	if decodeErr != nil {
+		return fmt.Errorf("convert module %q spec: %w", module.Spec.Module, decodeErr)
 	}
 
-	moduleValues, err := runtime.DefaultUnstructuredConverter.ToUnstructured(&definition.Config.Spec)
-	if err != nil {
-		return fmt.Errorf("convert module %q spec: %w", module.Spec.Module, err)
-	}
 	moduleValues["enabled"] = true
 	moduleValues["namespace"] = moduleNamespace(module.Spec.Module)
 	moduleValues["image"] = c.image
 
 	values := manifesttypes.Values{
-		"module":      moduleValues,
-		"projections": map[string]any{"enabled": false},
+		moduleValuesKey: moduleValues,
+		"projections": map[string]any{
+			"enabled": false,
+		},
 	}
 
 	rendered, err := c.renderers[module.Spec.Module].Render(ctx, manifestrender.WithValues(values))
@@ -126,22 +129,22 @@ func (c *Controller) render(ctx context.Context, request *pipeline.Request) erro
 func (c *Controller) pruneOrphans(ctx context.Context, request *pipeline.Request) error {
 	module, err := reconciler.Instance[*v1alpha1.PlatformModule](request)
 	if err != nil {
-		return err
+		return fmt.Errorf("get PlatformModule for pruning: %w", err)
 	}
 
-	current := make(map[v1alpha1.ResourceRef]struct{}, request.Resources.Len())
+	current := sets.New[v1alpha1.ResourceRef]()
 	for _, object := range request.Resources.All() {
-		current[resourceRef(object)] = struct{}{}
+		current.Insert(resourceRef(object))
 	}
 
 	for _, ref := range module.Status.Resources {
-		if _, found := current[ref]; found {
+		if current.Has(ref) {
 			continue
 		}
 
 		object, err := objectFromRef(ref)
 		if err != nil {
-			return err
+			return fmt.Errorf("decode orphan resource %q: %w", ref.Name, err)
 		}
 		if retainedResource(object.GroupVersionKind()) {
 			continue
@@ -162,30 +165,37 @@ func (c *Controller) pruneOrphans(ctx context.Context, request *pipeline.Request
 func (c *Controller) recordResources(_ context.Context, request *pipeline.Request) error {
 	module, err := reconciler.Instance[*v1alpha1.PlatformModule](request)
 	if err != nil {
-		return err
+		return fmt.Errorf("get PlatformModule for recording: %w", err)
 	}
 
-	refs := make([]v1alpha1.ResourceRef, 0, request.Resources.Len())
-	current := make(map[v1alpha1.ResourceRef]struct{}, request.Resources.Len())
+	current := sets.New[v1alpha1.ResourceRef]()
 	for _, object := range request.Resources.All() {
-		ref := resourceRef(object)
-		refs = append(refs, ref)
-		current[ref] = struct{}{}
+		current.Insert(resourceRef(object))
 	}
 
 	for _, ref := range module.Status.Resources {
-		if _, found := current[ref]; found {
+		if current.Has(ref) {
 			continue
 		}
 
 		object, err := objectFromRef(ref)
 		if err != nil {
-			return err
+			return fmt.Errorf("decode recorded resource %q: %w", ref.Name, err)
 		}
 		if retainedResource(object.GroupVersionKind()) {
-			refs = append(refs, ref)
+			current.Insert(ref)
 		}
 	}
+
+	refs := current.UnsortedList()
+	slices.SortFunc(refs, func(left v1alpha1.ResourceRef, right v1alpha1.ResourceRef) int {
+		return cmp.Or(
+			cmp.Compare(left.APIVersion, right.APIVersion),
+			cmp.Compare(left.Kind, right.Kind),
+			cmp.Compare(left.Namespace, right.Namespace),
+			cmp.Compare(left.Name, right.Name),
+		)
+	})
 
 	module.Status.Resources = refs
 
@@ -195,20 +205,25 @@ func (c *Controller) recordResources(_ context.Context, request *pipeline.Reques
 func (c *Controller) cleanup(ctx context.Context, request *pipeline.Request) error {
 	module, err := reconciler.Instance[*v1alpha1.PlatformModule](request)
 	if err != nil {
-		return err
+		return fmt.Errorf("get PlatformModule for cleanup: %w", err)
 	}
 
 	err = c.requireModuleCRRemoved(ctx, module)
 	if err != nil {
-		return err
+		return fmt.Errorf("wait for module CR removal: %w", err)
 	}
 
 	err = deleteRecordedResources(ctx, request.Client, module.Status.Resources)
 	if err != nil {
-		return err
+		return fmt.Errorf("delete recorded resources: %w", err)
 	}
 
-	return c.checkRecordedResourcesRemoved(ctx, module.Status.Resources)
+	err = c.checkRecordedResourcesRemoved(ctx, module.Status.Resources)
+	if err != nil {
+		return fmt.Errorf("check recorded resource removal: %w", err)
+	}
+
+	return nil
 }
 
 var _ platformapi.PlatformObject = (*v1alpha1.PlatformModule)(nil)

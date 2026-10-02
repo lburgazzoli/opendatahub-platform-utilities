@@ -4,6 +4,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-viper/mapstructure/v2"
+	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
+	manifesttypes "github.com/k8s-manifest-kit/engine/pkg/types"
+	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	"github.com/onsi/gomega"
 	kservev1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/kserve/v1alpha1"
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
@@ -50,7 +54,7 @@ func TestInventoryTracksRetainedResourcesAndPrunesOrphans(t *testing.T) {
 	request := &pipeline.Request{
 		Client:    kubeClient,
 		Instance:  module,
-		Resources: resources.New(resources.List{*currentDeployment}),
+		Resources: resources.New(resources.List{*currentDeployment, *currentDeployment}),
 	}
 	controller := new(Controller)
 
@@ -62,9 +66,9 @@ func TestInventoryTracksRetainedResourcesAndPrunesOrphans(t *testing.T) {
 	err = kubeClient.Get(t.Context(), client.ObjectKeyFromObject(namespace), new(corev1.Namespace))
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(module.Status.Resources).To(gomega.Equal([]v1alpha1.ResourceRef{
+		{APIVersion: "apiextensions.k8s.io/v1", Kind: "CustomResourceDefinition", Name: "kserves.kserve.example.odh.io"},
 		{APIVersion: "apps/v1", Kind: "Deployment", Namespace: namespace.Name, Name: "new-controller"},
 		{APIVersion: "v1", Kind: "Namespace", Name: namespace.Name},
-		{APIVersion: "apiextensions.k8s.io/v1", Kind: "CustomResourceDefinition", Name: "kserves.kserve.example.odh.io"},
 	}))
 }
 
@@ -101,7 +105,8 @@ func TestCleanupWaitsForConfiguredModuleCRAndRetainsNamespaceAndCRD(t *testing.T
 	request := &pipeline.Request{Client: kubeClient, Instance: module, Resources: resources.New(nil)}
 
 	err = controller.cleanup(t.Context(), request)
-	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring("waiting for Kserve/" + moduleCR.Name)))
+	waitingForCR := "wait for module CR removal: waiting for Kserve/" + moduleCR.Name
+	g.Expect(err).To(gomega.MatchError(gomega.ContainSubstring(waitingForCR)))
 	err = kubeClient.Get(t.Context(), client.ObjectKeyFromObject(serviceAccount), new(corev1.ServiceAccount))
 	g.Expect(err).To(gomega.Succeed())
 
@@ -114,4 +119,143 @@ func TestCleanupWaitsForConfiguredModuleCRAndRetainsNamespaceAndCRD(t *testing.T
 	g.Expect(err).To(gomega.Succeed())
 	g.Expect(module.Status.Resources).To(gomega.HaveLen(3))
 	g.Expect(module.Status.Resources[1].Name).To(gomega.Equal(definition.CRDName))
+}
+
+func TestModuleSpecMapstructureValues(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+
+	spec := modules.ModuleSpec{
+		ModuleRef:     modules.ModuleRef{APIVersion: "example.io/v1", Kind: "Example", Name: "cluster"},
+		Chart:         modules.ChartSpec{Name: "example", Path: "charts", Version: "1.0.0"},
+		RelatedImages: []string{"example.io/controller:1.0.0"},
+		Config:        map[string]any{"replicas": 2},
+		Services:      []string{"example"},
+		Runlevel:      3,
+	}
+	values := make(map[string]any)
+	g.Expect(mapstructure.Decode(&spec, &values)).To(gomega.Succeed())
+	g.Expect(values).To(gomega.Equal(map[string]any{
+		"moduleRef":     map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
+		"chart":         map[string]any{"name": "example", "path": "charts", "version": "1.0.0"},
+		"relatedImages": []string{"example.io/controller:1.0.0"},
+		"config":        map[string]any{"replicas": 2},
+		"services":      []string{"example"},
+		"runlevel":      3,
+	}))
+
+	minimal := modules.ModuleSpec{ModuleRef: spec.ModuleRef}
+	minimalValues := make(map[string]any)
+	g.Expect(mapstructure.Decode(&minimal, &minimalValues)).To(gomega.Succeed())
+	g.Expect(minimalValues).To(gomega.Equal(map[string]any{
+		"moduleRef": map[string]any{"apiVersion": "example.io/v1", "kind": "Example", "name": "cluster"},
+	}))
+}
+
+func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
+	t.Parallel()
+	g := gomega.NewWithT(t)
+	registry, err := modules.Load(filepath.Join("..", "..", "..", "config", "modules"))
+	g.Expect(err).To(gomega.Succeed())
+
+	for _, name := range registry.Names() {
+		definition, _ := registry.Get(name)
+		renderer, err := helm.NewEngine(helm.Source{
+			Chart:               definition.Chart,
+			ReleaseName:         definition.Config.Spec.Chart.Name,
+			ReleaseNamespace:    "opendatahub-" + name + "-system",
+			ReleaseVersion:      definition.Config.Spec.Chart.Version,
+			ProcessDependencies: true,
+		})
+		g.Expect(err).To(gomega.Succeed())
+
+		moduleValues := make(map[string]any)
+		err = mapstructure.Decode(&definition.Config.Spec, &moduleValues)
+		g.Expect(err).To(gomega.Succeed())
+		moduleValues["config"] = map[string]any{"replicas": 2}
+		moduleValues["enabled"] = true
+		moduleValues["namespace"] = "opendatahub-" + name + "-system"
+		moduleValues["image"] = "ttl.sh/example:24h"
+
+		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(manifesttypes.Values{
+			moduleValuesKey: moduleValues,
+			"projections":   map[string]any{"enabled": false},
+		}))
+		g.Expect(err).To(gomega.Succeed())
+		g.Expect(objects).To(gomega.HaveLen(6))
+
+		var deployment *unstructured.Unstructured
+		var crd *unstructured.Unstructured
+		var namespace *unstructured.Unstructured
+		for index := range objects {
+			switch objects[index].GetKind() {
+			case "Deployment":
+				deployment = &objects[index]
+			case "CustomResourceDefinition":
+				crd = &objects[index]
+			case "Namespace":
+				namespace = &objects[index]
+			case "ServiceAccount":
+				g.Expect(objects[index].GetNamespace()).To(gomega.Equal("opendatahub-" + name + "-system"))
+			}
+		}
+		g.Expect(deployment).NotTo(gomega.BeNil())
+		g.Expect(deployment.GetNamespace()).To(gomega.Equal("opendatahub-" + name + "-system"))
+		g.Expect(namespace).NotTo(gomega.BeNil())
+		g.Expect(namespace.GetName()).To(gomega.Equal("opendatahub-" + name + "-system"))
+		assertModuleCRD(t, crd, definition)
+
+		assertModuleDeployment(t, deployment, name)
+	}
+}
+
+func assertModuleDeployment(t *testing.T, deployment *unstructured.Unstructured, name string) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	container, ok := containers[0].(map[string]any)
+	g.Expect(ok).To(gomega.BeTrue())
+	g.Expect(container["image"]).To(gomega.Equal("ttl.sh/example:24h"))
+	g.Expect(container["args"]).To(gomega.Equal([]any{"run", "module", name}))
+
+	replicas, found, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(replicas).To(gomega.Equal(int64(2)))
+}
+
+func assertModuleCRD(t *testing.T, crd *unstructured.Unstructured, definition modules.Definition) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+	g.Expect(crd).NotTo(gomega.BeNil())
+	g.Expect(crd.GetName()).To(gomega.Equal(definition.CRDName))
+
+	group, found, err := unstructured.NestedString(crd.Object, "spec", "group")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(group).To(gomega.Equal(definition.GVK().Group))
+
+	kind, found, err := unstructured.NestedString(crd.Object, "spec", "names", "kind")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(kind).To(gomega.Equal(definition.GVK().Kind))
+
+	plural, found, err := unstructured.NestedString(crd.Object, "spec", "names", "plural")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(plural).To(gomega.Equal(definition.Plural))
+
+	singular, found, err := unstructured.NestedString(crd.Object, "spec", "names", "singular")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(singular).To(gomega.Equal(definition.Config.Metadata.Name))
+
+	versions, found, err := unstructured.NestedSlice(crd.Object, "spec", "versions")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(versions).To(gomega.HaveLen(1))
+	g.Expect(versions[0]).To(gomega.HaveKeyWithValue("name", definition.GVK().Version))
 }

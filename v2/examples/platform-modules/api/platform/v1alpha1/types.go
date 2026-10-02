@@ -89,6 +89,7 @@ func (p *Platform) SetReleaseStatus(status platformapi.ReleaseStatus) {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:scope=Cluster
+// +kubebuilder:validation:XValidation:rule="self.metadata.name == self.spec.module",message="name must equal module"
 type PlatformModule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
