@@ -232,3 +232,8 @@ buildable; the v2 runtime must not depend on it.
   apply. The separate preparation pass, identity calculation, and preparation
   benchmark were removed. The v2 race suite, vet, and formatting checks passed;
   the pinned formatter and linter remained blocked by `proxy.golang.org` DNS.
+- [x] Deploy now publishes the sorted collection before its run loop and uses
+  `Resources.All()` to decorate each owned object in place. Caller-owned copies
+  are the caller's responsibility; the extra copy and deferred publication were
+  removed. The v2 race suite, vet, and formatting checks passed; the pinned
+  formatter and linter remained blocked by `proxy.golang.org` DNS.

@@ -43,36 +43,34 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 		return Result{}, err
 	}
 
-	runOptions := RunOptions{}
-	runOptions.Merge(values...)
+	ro := RunOptions{}
+	ro.Merge(values...)
 
-	if err := runOptions.Validate(); err != nil {
+	if err := ro.Validate(); err != nil {
 		return Result{}, err
 	}
 	if a.cache != nil {
 		a.cache.Sync()
 	}
 
-	objects := runOptions.Resources.Get()
+	objects := ro.Resources.Get()
 	a.options.Sort(objects)
-	defer runOptions.Resources.Set(objects)
+	ro.Resources.Set(objects)
 
 	result := Result{}
 	var runErrors []error
-	for index := range objects {
-		object := objects[index].DeepCopy()
+	for _, object := range ro.Resources.All() {
 		resources.SetLabels(object, a.options.Labels)
 		resources.SetAnnotations(object, a.options.Annotations)
-		resources.SetLabels(object, runOptions.Labels)
-		resources.SetAnnotations(object, runOptions.Annotations)
+		resources.SetLabels(object, ro.Labels)
+		resources.SetAnnotations(object, ro.Annotations)
 
 		var applied bool
-		err := a.options.MetadataPolicy.Apply(object, runOptions.Owner)
+		err := a.options.MetadataPolicy.Apply(object, ro.Owner)
 		if err != nil {
 			err = fmt.Errorf("decorate %s/%s %s: %w", object.GetNamespace(), object.GetName(), object.GroupVersionKind(), err)
 		} else {
-			objects[index] = *object
-			applied, err = a.deploy(ctx, runOptions, object)
+			applied, err = a.deploy(ctx, ro, object)
 		}
 
 		switch {

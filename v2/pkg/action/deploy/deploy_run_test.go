@@ -65,6 +65,34 @@ func TestRunNormalizesPublishesAndApplies(t *testing.T) {
 	g.Expect(metav1.IsControlledBy(stored, owner)).Should(BeTrue())
 }
 
+func TestRunDecoratesOwnedUnstructuredResource(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	scheme := runtime.NewScheme()
+	g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
+	kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+	owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "owner", Namespace: "ns", UID: "owner-uid"}}
+	owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+	desired := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1",
+		"kind":       "ConfigMap",
+		"metadata": map[string]any{
+			"name":      "desired",
+			"namespace": "ns",
+		},
+	}}
+	collection := resources.New(resources.List{*desired})
+
+	result, err := deploy.New().Run(t.Context(), deploy.RunOptions{
+		Client: kubernetesClient, Owner: owner, Resources: collection,
+	})
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(result.Applied).Should(Equal(1))
+	g.Expect(desired.GetLabels()).Should(HaveKeyWithValue(labels.PlatformPartOf, "configmap"))
+	g.Expect(desired.GetAnnotations()).Should(HaveKeyWithValue(annotations.InstanceUID, "owner-uid"))
+}
+
 func TestRunSortsBeforeDeploying(t *testing.T) {
 	t.Parallel()
 
