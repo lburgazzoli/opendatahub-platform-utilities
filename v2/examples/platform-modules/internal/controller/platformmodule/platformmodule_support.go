@@ -1,11 +1,15 @@
 package platformmodule
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"time"
 
+	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
+	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/action"
 	kubegvk "github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
@@ -15,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
@@ -32,6 +37,29 @@ func allModuleRequests(names []string) func(context.Context, client.Object) []re
 
 func moduleNamespace(name string) string {
 	return "opendatahub-" + name + "-system"
+}
+
+func newModuleRenderer(name string, definition modules.Definition) (*manifestengine.Engine, error) {
+	namespace := moduleNamespace(name)
+	if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
+		return nil, fmt.Errorf("%w: namespace %q: %v", ErrInvalidConfig, namespace, errs)
+	}
+
+	renderer, err := helm.NewEngine(
+		helm.Source{
+			Chart:               definition.Chart,
+			ReleaseName:         cmp.Or(definition.Config.Spec.Chart.Name, name),
+			ReleaseNamespace:    namespace,
+			ReleaseVersion:      definition.Config.Spec.Chart.Version,
+			ProcessDependencies: true,
+		},
+		helm.WithCache(),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create module %q renderer: %w", name, err)
+	}
+
+	return renderer, nil
 }
 
 func (c *Controller) requireModuleCRRemoved(ctx context.Context, module *v1alpha1.PlatformModule) error {

@@ -16,6 +16,7 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -40,17 +41,26 @@ func Setup(manager manager.Manager, registry *modules.Registry) error {
 
 	controller := &PlatformController{registry: registry}
 
-	return reconciler.For(manager, v1alpha1.NewPlatform(),
+	r := reconciler.For(manager, v1alpha1.NewPlatform(),
 		reconciler.WithConditionTypes(v1alpha1.ConditionModulesReady),
-	).
-		Owns(v1alpha1.NewPlatformModule(),
-			reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
-		WithActionFunc(controller.render).
-		WithAction(deploy.New()).
-		WithActionFunc(controller.pruneModules).
-		WithActionFunc(controller.updateStatus).
-		Build()
+	)
+
+	r = r.Owns(
+		v1alpha1.NewPlatformModule(),
+		reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+	)
+
+	r = r.WithActionFunc(controller.render)
+	r = r.WithAction(deploy.New())
+	r = r.WithActionFunc(controller.pruneModules)
+	r = r.WithActionFunc(controller.updateStatus)
+
+	err := r.Build()
+	if err != nil {
+		return fmt.Errorf("setup platform controller: %w", err)
+	}
+
+	return nil
 }
 
 func (c *PlatformController) render(_ context.Context, request *pipeline.Request) error {
@@ -105,6 +115,8 @@ func (c *PlatformController) pruneModules(ctx context.Context, request *pipeline
 		switch {
 		case apierrors.IsNotFound(err):
 			continue
+		case meta.IsNoMatchError(err):
+			continue
 		case err != nil:
 			return fmt.Errorf("delete PlatformModule %q: %w", module.Name, err)
 		}
@@ -127,6 +139,8 @@ func (c *PlatformController) updateStatus(ctx context.Context, request *pipeline
 		err = request.Client.Get(ctx, client.ObjectKeyFromObject(module), module)
 		switch {
 		case apierrors.IsNotFound(err):
+			notReady.Insert(name)
+		case meta.IsNoMatchError(err):
 			notReady.Insert(name)
 		case err != nil:
 			return fmt.Errorf("get PlatformModule %q for status: %w", name, err)

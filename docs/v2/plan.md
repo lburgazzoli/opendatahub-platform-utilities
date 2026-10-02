@@ -354,3 +354,7 @@ buildable; the v2 runtime must not depend on it.
   Formatter, race tests, vet, e2e compilation, and the Kind test passed.
   Full lint remains blocked by existing setup `funlen` and `noinlineerr`
   findings; lint passed with those checks disabled.
+- [x] Finalized Platform and PlatformModule setup and absent-API handling.
+  Module renderer construction lives in the controller support file, setup
+  errors are wrapped, and unavailable APIs have explicit error cases.
+  Formatter, full pinned lint, race tests, and vet passed.

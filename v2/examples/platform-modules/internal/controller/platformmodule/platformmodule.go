@@ -10,7 +10,6 @@ import (
 
 	manifestengine "github.com/k8s-manifest-kit/engine/pkg"
 	manifestrender "github.com/k8s-manifest-kit/engine/pkg/render"
-	helm "github.com/k8s-manifest-kit/renderer-helm/pkg"
 	platformapi "github.com/opendatahub-io/odh-platform-utilities/v2/api"
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
@@ -21,9 +20,9 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/controller/reconciler"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/gvk"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/sets"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/manager"
 	"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -57,10 +56,13 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 		writer:    manager.GetClient(),
 		image:     image,
 	}
+
 	r := reconciler.For(manager, v1alpha1.NewPlatformModule(),
 		reconciler.WithCleanupTimeout(0),
 		reconciler.WithExcludedOwnershipTypes(gvk.CustomResourceDefinition),
-	).WithDynamicOwnership()
+	)
+
+	r = r.WithDynamicOwnership()
 
 	moduleNames := registry.Names()
 	for _, name := range moduleNames {
@@ -69,45 +71,38 @@ func Setup(manager manager.Manager, registry *modules.Registry, image string) er
 			return fmt.Errorf("%w: %q is missing from registry", ErrUnknownModule, name)
 		}
 
-		namespace := moduleNamespace(name)
-		if errs := validation.IsDNS1123Label(namespace); len(errs) > 0 {
-			return fmt.Errorf("%w: namespace %q: %v", ErrInvalidConfig, namespace, errs)
-		}
-
-		renderer, err := helm.NewEngine(
-			helm.Source{
-				Chart:               definition.Chart,
-				ReleaseName:         cmp.Or(definition.Config.Spec.Chart.Name, name),
-				ReleaseNamespace:    namespace,
-				ReleaseVersion:      definition.Config.Spec.Chart.Version,
-				ProcessDependencies: true,
-			},
-			helm.WithCache(),
-		)
+		renderer, err := newModuleRenderer(name, definition)
 		if err != nil {
-			return fmt.Errorf("create module %q renderer: %w", name, err)
+			return fmt.Errorf("configure module %q renderer: %w", name, err)
 		}
 
 		controller.renderers[name] = renderer
 
-		r.WatchesGVK(definition.GVK(),
+		r = r.WatchesGVK(definition.GVK(),
 			reconciler.WithEventHandler(platformhandler.ToNamed(name)),
 			reconciler.WithPredicates(platformpredicate.CreatedOrUpdatedOrDeletedNamed(definition.Config.Spec.ModuleRef.Name)),
 			reconciler.Dynamic(reconciler.CrdExists(definition.GVK())),
 		)
 	}
 
-	return r.
-		WatchesGVK(gvk.CustomResourceDefinition,
-			reconciler.WithEventMapper(allModuleRequests(moduleNames)),
-			reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
-		).
-		WithActionFunc(controller.render).
-		WithAction(deploy.New()).
-		WithActionFunc(controller.pruneOrphans).
-		WithActionFunc(controller.recordResources).
-		WithCleanupActionFunc(controller.cleanup).
-		Build()
+	r = r.WatchesGVK(
+		gvk.CustomResourceDefinition,
+		reconciler.WithEventMapper(allModuleRequests(moduleNames)),
+		reconciler.WithPredicates(predicate.ResourceVersionChangedPredicate{}),
+	)
+
+	r = r.WithActionFunc(controller.render)
+	r = r.WithAction(deploy.New())
+	r = r.WithActionFunc(controller.pruneOrphans)
+	r = r.WithActionFunc(controller.recordResources)
+	r = r.WithCleanupActionFunc(controller.cleanup)
+
+	err := r.Build()
+	if err != nil {
+		return fmt.Errorf("setup platform module controller: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Controller) render(ctx context.Context, request *pipeline.Request) error {
@@ -174,6 +169,8 @@ func (c *Controller) pruneOrphans(ctx context.Context, request *pipeline.Request
 		err = request.Client.Delete(ctx, object, client.PropagationPolicy(metav1.DeletePropagationForeground))
 		switch {
 		case apierrors.IsNotFound(err):
+			continue
+		case meta.IsNoMatchError(err):
 			continue
 		case err != nil:
 			return fmt.Errorf("prune %s: %w", identityOf(object), err)
