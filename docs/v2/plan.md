@@ -342,3 +342,8 @@ buildable; the v2 runtime must not depend on it.
   watches CRDs from startup and conditionally watches each configured module
   CR after its API appears. The example's race tests, vet, formatter, e2e
   compilation, pinned linter, and both Podman Kind scenarios passed.
+- [x] Made Platform status check each module named in `spec.modules` directly.
+  A missing PlatformModule counts as unready, and lookup errors and readiness
+  checks use one ordered switch. The example's formatter, race tests, and vet
+  passed. The pinned linter passed with `funlen` disabled because of an unrelated
+  uncommitted PlatformModule setup edit.

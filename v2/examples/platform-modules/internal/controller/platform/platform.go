@@ -119,29 +119,26 @@ func (c *PlatformController) updateStatus(ctx context.Context, request *pipeline
 		return fmt.Errorf("get Platform for status: %w", err)
 	}
 
-	moduleList := new(v1alpha1.PlatformModuleList)
-	err = request.Client.List(ctx, moduleList)
-	if err != nil {
-		return fmt.Errorf("list PlatformModules for status: %w", err)
-	}
-
-	missing := sets.New(platform.Spec.Modules...)
 	notReady := sets.New[string]()
-	for index := range moduleList.Items {
-		module := &moduleList.Items[index]
-		if !missing.Has(module.Name) {
-			continue
-		}
+	for _, name := range platform.Spec.Modules {
+		module := v1alpha1.NewPlatformModule()
+		module.Name = name
 
-		missing.Delete(module.Name)
-		if !module.DeletionTimestamp.IsZero() ||
-			module.Status.ObservedGeneration != module.Generation ||
-			!condition.IsTrue(module.GetStatus(), string(platformapi.ConditionTypeReady)) {
-			notReady.Insert(module.Name)
+		err = request.Client.Get(ctx, client.ObjectKeyFromObject(module), module)
+		switch {
+		case apierrors.IsNotFound(err):
+			notReady.Insert(name)
+		case err != nil:
+			return fmt.Errorf("get PlatformModule %q for status: %w", name, err)
+		case !module.DeletionTimestamp.IsZero():
+			notReady.Insert(name)
+		case module.Status.ObservedGeneration != module.Generation:
+			notReady.Insert(name)
+		case !condition.IsTrue(module.GetStatus(), string(platformapi.ConditionTypeReady)):
+			notReady.Insert(name)
 		}
 	}
 
-	notReady.Insert(missing.UnsortedList()...)
 	if len(notReady) > 0 {
 		condition.MarkFalse(platform.GetStatus(), string(v1alpha1.ConditionModulesReady),
 			condition.WithReason("ModulesNotReady"),
