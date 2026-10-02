@@ -44,6 +44,8 @@ spec:
             - module
             type: object
           status:
+            description: PlatformModuleStatus records the resources managed for one
+              module.
             properties:
               conditions:
                 items:
@@ -95,6 +97,25 @@ spec:
                 x-kubernetes-list-map-keys:
                 - name
                 x-kubernetes-list-type: map
+              resources:
+                items:
+                  description: ResourceRef identifies a resource rendered for one
+                    PlatformModule.
+                  properties:
+                    apiVersion:
+                      type: string
+                    kind:
+                      type: string
+                    name:
+                      type: string
+                    namespace:
+                      type: string
+                  required:
+                  - apiVersion
+                  - kind
+                  - name
+                  type: object
+                type: array
             type: object
         type: object
     served: true

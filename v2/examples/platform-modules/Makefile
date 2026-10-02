@@ -10,7 +10,6 @@ CONTAINER_TOOL ?= podman
 KUBECTL ?= kubectl
 IMG ?= ttl.sh/odh-platform-utilities-v2-example:24h
 MODULES_DIR ?= config/modules
-MODULE_NAMESPACE ?= default
 
 GO_MOD_VERSION := $(shell awk '/^go /{print $$2; exit}' go.mod)
 export GOTOOLCHAIN := go$(GO_MOD_VERSION)
@@ -66,7 +65,7 @@ install: manifests
 	$(KUBECTL) apply -f config/crd/bases/example.platform.odh.io_servings.yaml
 
 run/platform:
-	PLATFORM_MODULES_DIR=$(MODULES_DIR) PLATFORM_MODULE_IMAGE=$(IMG) PLATFORM_MODULE_NAMESPACE=$(MODULE_NAMESPACE) go run ./cmd run controller platform
+	PLATFORM_MODULES_DIR=$(MODULES_DIR) PLATFORM_MODULE_IMAGE=$(IMG) go run ./cmd run controller platform
 
 run/serving:
 	PLATFORM_MODULES_DIR=$(MODULES_DIR) go run ./cmd run controller serving

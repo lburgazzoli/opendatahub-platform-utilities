@@ -10,6 +10,7 @@ import (
 	kservev1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/kserve/v1alpha1"
 	modulecontroller "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/module"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/platform"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/platformmodule"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/serving"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"github.com/spf13/cobra"
@@ -63,8 +64,12 @@ func newCommand() *cobra.Command {
 						return ErrModuleImage
 					}
 
-					namespace := cmp.Or(os.Getenv("PLATFORM_MODULE_NAMESPACE"), "default")
-					return platform.Setup(manager, registry, image, namespace)
+					err := platform.Setup(manager, registry)
+					if err != nil {
+						return err
+					}
+
+					return platformmodule.Setup(manager, registry, image)
 				})
 			},
 		},

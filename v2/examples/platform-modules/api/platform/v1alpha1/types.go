@@ -25,6 +25,23 @@ type ControllerStatus struct {
 	platformapi.Status        `json:",inline"`
 }
 
+// ResourceRef identifies a resource rendered for one PlatformModule.
+type ResourceRef struct {
+	APIVersion string `json:"apiVersion"`
+	Kind       string `json:"kind"`
+	Namespace  string `json:"namespace,omitempty"`
+	Name       string `json:"name"`
+}
+
+// PlatformModuleStatus records the resources managed for one module.
+//
+//nolint:govet // Keep the shared status embedded before the inventory field.
+type PlatformModuleStatus struct {
+	ControllerStatus `json:",inline"`
+
+	Resources []ResourceRef `json:"resources,omitempty"`
+}
+
 // Platform declares the enabled module names.
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
@@ -76,8 +93,8 @@ type PlatformModule struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   PlatformModuleSpec `json:"spec,omitempty"`
-	Status ControllerStatus   `json:"status,omitempty"`
+	Spec   PlatformModuleSpec   `json:"spec,omitempty"`
+	Status PlatformModuleStatus `json:"status,omitempty"`
 }
 
 type PlatformModuleSpec struct {

@@ -8,8 +8,8 @@ controller creates a `PlatformModule` for each selection. Each
 chart. The module controllers reconcile typed CRs and report readiness through
 the shared v2 status helpers.
 
-The controllers live in `internal/controller/serving`, `platform`, and
-`module`. Each uses `reconciler.For`. Serving uses dynamic GVK watches because
+The controllers live in `internal/controller/serving`, `platform`,
+`platformmodule`, and `module`. Each uses `reconciler.For`. Serving uses dynamic GVK watches because
 the module CRDs are installed after its manager starts.
 
 ## Module bundles
@@ -24,7 +24,10 @@ Serving-to-module spec and module-to-Serving status apply objects. Exactly one
 child is enabled for a render, and projection output is never deployed as a
 Helm release. `pkg/modules.Load` validates the descriptors at startup. The
 PlatformModule controller passes the complete config spec as `.Values.module`,
-along with image and namespace, so the module child reads `.Values.config.replicas`.
+along with image and the module-specific namespace, so the module child reads `.Values.config.replicas`.
+Each module uses `opendatahub-<name>-system`. PlatformModule status records all
+rendered resources, including the Namespace and CRD. Cleanup retains those two
+resources when the module is removed.
 The module controller receives its typed API object from the corresponding
 module subcommand. The API packages are separate groups under `api/kserve` and
 `api/aigateway`.

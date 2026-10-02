@@ -299,3 +299,11 @@ buildable; the v2 runtime must not depend on it.
   `make manifests` generates module CRDs directly into those charts. The
   example's formatter, race tests, linter, build, e2e compilation, and both
   Podman Kind integration tests passed.
+- [x] Split the example's Platform and PlatformModule controllers into separate
+  packages. Each PlatformModule now deploys into `opendatahub-<name>-system`,
+  records all rendered resources in status, prunes retired chart resources,
+  and explicitly removes recorded controller resources on deletion after its
+  configured module CR is gone. Namespace and CRD references stay in status
+  and those resources are never pruned or deleted. Generated API artifacts,
+  race tests, vet, e2e compilation, the pinned formatter and linter, and both
+  Podman Kind integration tests passed.

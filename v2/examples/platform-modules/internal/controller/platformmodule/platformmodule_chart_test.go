@@ -1,4 +1,4 @@
-package platform_test
+package platformmodule_test
 
 import (
 	"path/filepath"
@@ -24,7 +24,7 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 		renderer, err := helm.NewEngine(helm.Source{
 			Chart:               definition.Chart,
 			ReleaseName:         definition.Config.Spec.Chart.Name,
-			ReleaseNamespace:    "default",
+			ReleaseNamespace:    "opendatahub-" + name + "-system",
 			ReleaseVersion:      definition.Config.Spec.Chart.Version,
 			ProcessDependencies: true,
 		})
@@ -34,7 +34,7 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 		g.Expect(err).To(gomega.Succeed())
 		moduleValues["config"] = map[string]any{"replicas": 2}
 		moduleValues["enabled"] = true
-		moduleValues["namespace"] = "default"
+		moduleValues["namespace"] = "opendatahub-" + name + "-system"
 		moduleValues["image"] = "ttl.sh/example:24h"
 
 		objects, err := renderer.Render(t.Context(), manifestrender.WithValues(manifesttypes.Values{
@@ -42,34 +42,49 @@ func TestModuleChartRunsSameImageWithSelectedCRD(t *testing.T) {
 			"projections": map[string]any{"enabled": false},
 		}))
 		g.Expect(err).To(gomega.Succeed())
-		g.Expect(objects).To(gomega.HaveLen(5))
+		g.Expect(objects).To(gomega.HaveLen(6))
 
 		var deployment *unstructured.Unstructured
 		var crd *unstructured.Unstructured
+		var namespace *unstructured.Unstructured
 		for index := range objects {
 			switch objects[index].GetKind() {
 			case "Deployment":
 				deployment = &objects[index]
 			case "CustomResourceDefinition":
 				crd = &objects[index]
+			case "Namespace":
+				namespace = &objects[index]
+			case "ServiceAccount":
+				g.Expect(objects[index].GetNamespace()).To(gomega.Equal("opendatahub-" + name + "-system"))
 			}
 		}
 		g.Expect(deployment).NotTo(gomega.BeNil())
+		g.Expect(deployment.GetNamespace()).To(gomega.Equal("opendatahub-" + name + "-system"))
+		g.Expect(namespace).NotTo(gomega.BeNil())
+		g.Expect(namespace.GetName()).To(gomega.Equal("opendatahub-" + name + "-system"))
 		assertModuleCRD(t, crd, definition)
 
-		containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
-		g.Expect(err).To(gomega.Succeed())
-		g.Expect(found).To(gomega.BeTrue())
-		container, ok := containers[0].(map[string]any)
-		g.Expect(ok).To(gomega.BeTrue())
-		g.Expect(container["image"]).To(gomega.Equal("ttl.sh/example:24h"))
-		g.Expect(container["args"]).To(gomega.Equal([]any{"run", "module", name}))
-
-		replicas, found, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
-		g.Expect(err).To(gomega.Succeed())
-		g.Expect(found).To(gomega.BeTrue())
-		g.Expect(replicas).To(gomega.Equal(int64(2)))
+		assertModuleDeployment(t, deployment, name)
 	}
+}
+
+func assertModuleDeployment(t *testing.T, deployment *unstructured.Unstructured, name string) {
+	t.Helper()
+	g := gomega.NewWithT(t)
+
+	containers, found, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	container, ok := containers[0].(map[string]any)
+	g.Expect(ok).To(gomega.BeTrue())
+	g.Expect(container["image"]).To(gomega.Equal("ttl.sh/example:24h"))
+	g.Expect(container["args"]).To(gomega.Equal([]any{"run", "module", name}))
+
+	replicas, found, err := unstructured.NestedInt64(deployment.Object, "spec", "replicas")
+	g.Expect(err).To(gomega.Succeed())
+	g.Expect(found).To(gomega.BeTrue())
+	g.Expect(replicas).To(gomega.Equal(int64(2)))
 }
 
 func assertModuleCRD(t *testing.T, crd *unstructured.Unstructured, definition modules.Definition) {

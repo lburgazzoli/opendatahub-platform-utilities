@@ -22,10 +22,13 @@ import (
 	v1alpha1 "github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/api/platform/v1alpha1"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/module"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/platform"
+	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/platformmodule"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/internal/controller/serving"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/examples/platform-modules/pkg/modules"
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/condition"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	rbacv1 "k8s.io/api/rbac/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	k8sruntime "k8s.io/apimachinery/pkg/runtime"
@@ -59,7 +62,8 @@ func TestPlatformAndServingOnKind(t *testing.T) {
 	assertModuleCRDsAbsent(t, kubeClient, registry)
 
 	platformManager := newManager(t, cluster.RESTConfig(), scheme)
-	g.Expect(platform.Setup(platformManager, registry, image, "default")).To(gomega.Succeed())
+	g.Expect(platform.Setup(platformManager, registry)).To(gomega.Succeed())
+	g.Expect(platformmodule.Setup(platformManager, registry, image)).To(gomega.Succeed())
 	startManager(t, platformManager)
 
 	servingManager := newManager(t, cluster.RESTConfig(), scheme)
@@ -76,7 +80,7 @@ func TestPlatformAndServingOnKind(t *testing.T) {
 	serving.Spec.Kserve.ManagementState = "Removed"
 	g.Expect(kubeClient.Update(t.Context(), serving)).To(gomega.Succeed())
 
-	waitForKserveRemoval(t, kubeClient)
+	waitForKserveRemoval(t, kubeClient, registry)
 	waitForServingStatus(t, kubeClient, false)
 }
 
@@ -95,7 +99,8 @@ func TestPlatformAndModuleOnKind(t *testing.T) {
 	assertModuleCRDsAbsent(t, kubeClient, registry)
 
 	platformManager := newManager(t, cluster.RESTConfig(), scheme)
-	g.Expect(platform.Setup(platformManager, registry, image, "default")).To(gomega.Succeed())
+	g.Expect(platform.Setup(platformManager, registry)).To(gomega.Succeed())
+	g.Expect(platformmodule.Setup(platformManager, registry, image)).To(gomega.Succeed())
 	startManager(t, platformManager)
 
 	instance := v1alpha1.NewPlatform()
@@ -216,9 +221,13 @@ func waitForServingStatus(t *testing.T, kubeClient client.Client, kserveReady bo
 	}).WithContext(t.Context()).WithTimeout(3 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
 }
 
-func waitForKserveRemoval(t *testing.T, kubeClient client.Client) {
+func waitForKserveRemoval(t *testing.T, kubeClient client.Client, registry *modules.Registry) {
 	t.Helper()
 	g := gomega.NewWithT(t)
+	definition, _ := registry.Get("kserve")
+	namespace := "opendatahub-kserve-system"
+	name := "example-kserve"
+
 	g.Eventually(func(g gomega.Gomega) {
 		kserve := new(kservev1alpha1.Kserve)
 		err := kubeClient.Get(t.Context(), types.NamespacedName{Name: v1alpha1.InstanceName}, kserve)
@@ -229,9 +238,27 @@ func waitForKserveRemoval(t *testing.T, kubeClient client.Client) {
 		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
 
 		deployment := new(appsv1.Deployment)
-		key := types.NamespacedName{Name: "example-kserve", Namespace: "default"}
+		key := types.NamespacedName{Name: name, Namespace: namespace}
 		err = kubeClient.Get(t.Context(), key, deployment)
 		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
+
+		serviceAccount := new(corev1.ServiceAccount)
+		err = kubeClient.Get(t.Context(), key, serviceAccount)
+		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
+
+		role := new(rbacv1.ClusterRole)
+		err = kubeClient.Get(t.Context(), types.NamespacedName{Name: name}, role)
+		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
+
+		binding := new(rbacv1.ClusterRoleBinding)
+		err = kubeClient.Get(t.Context(), types.NamespacedName{Name: name}, binding)
+		g.Expect(apierrors.IsNotFound(err)).To(gomega.BeTrue())
+
+		crd := new(apiextensionsv1.CustomResourceDefinition)
+		g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: definition.CRDName}, crd)).To(gomega.Succeed())
+
+		retainedNamespace := new(corev1.Namespace)
+		g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: namespace}, retainedNamespace)).To(gomega.Succeed())
 	}).WithContext(t.Context()).WithTimeout(3 * time.Minute).WithPolling(time.Second).Should(gomega.Succeed())
 }
 
@@ -270,9 +297,15 @@ func waitForModuleControllers(
 			module := v1alpha1.NewPlatformModule()
 			g.Expect(kubeClient.Get(t.Context(), types.NamespacedName{Name: name}, module)).To(gomega.Succeed())
 			g.Expect(module.Spec.Module).To(gomega.Equal(name))
+			g.Expect(module.Status.Resources).To(gomega.ContainElement(v1alpha1.ResourceRef{
+				APIVersion: "v1", Kind: "Namespace", Name: "opendatahub-" + name + "-system",
+			}))
+			g.Expect(module.Status.Resources).To(gomega.ContainElement(v1alpha1.ResourceRef{
+				APIVersion: "apiextensions.k8s.io/v1", Kind: "CustomResourceDefinition", Name: definition.CRDName,
+			}))
 
 			deployment := new(appsv1.Deployment)
-			key := types.NamespacedName{Name: "example-" + name, Namespace: "default"}
+			key := types.NamespacedName{Name: "example-" + name, Namespace: "opendatahub-" + name + "-system"}
 			g.Expect(kubeClient.Get(t.Context(), key, deployment)).To(gomega.Succeed())
 			g.Expect(deployment.Spec.Template.Spec.Containers[0].Image).To(gomega.Equal(image))
 			g.Expect(deployment.Status.AvailableReplicas).To(gomega.Equal(int32(1)))
