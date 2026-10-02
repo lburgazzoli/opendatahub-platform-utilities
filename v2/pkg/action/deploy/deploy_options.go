@@ -13,9 +13,11 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/platform/metadata/annotations"
 )
 
-// CacheOptions configures the optional process-local deploy cache.
+// CacheOptions configures the process-local deploy cache. Disabled opts out of
+// the cache, which is enabled by default.
 type CacheOptions struct {
-	TTL time.Duration
+	TTL      time.Duration
+	Disabled bool
 }
 
 // Options configures an Action. Maps and slices are copied when options are
@@ -29,6 +31,8 @@ type Options struct {
 	Labels               map[string]string
 	Annotations          map[string]string
 	Sort                 SortFunc
+	// Cache is enabled by default. A nil value in a complete Options value
+	// leaves the default unchanged; Disabled explicitly turns it off.
 	Cache                *CacheOptions
 	ExcludeFromOwnership []schema.GroupVersionKind
 	ManagedAnnotation    string
@@ -150,7 +154,7 @@ func WithSort(sort SortFunc) Option {
 // WithApplyOrder installs the default dependency ordering.
 func WithApplyOrder() Option { return WithSort(ApplyOrder) }
 
-// WithCache enables deploy caching. No argument uses the default TTL.
+// WithCache configures deploy caching. No argument uses the default TTL.
 func WithCache(values ...*CacheOptions) Option {
 	return option.FunctionalOption[Options](func(options *Options) {
 		cache := CacheOptions{}
@@ -158,6 +162,13 @@ func WithCache(values ...*CacheOptions) Option {
 			cache = *values[0]
 		}
 		options.Cache = &cache
+	})
+}
+
+// WithoutCache disables the process-local deploy cache.
+func WithoutCache() Option {
+	return option.FunctionalOption[Options](func(options *Options) {
+		options.Cache = &CacheOptions{Disabled: true}
 	})
 }
 
@@ -203,6 +214,7 @@ func defaultOptions() Options {
 			return owner.GetObjectKind().GroupVersionKind().Kind
 		},
 		Sort:                 ApplyOrder,
+		Cache:                &CacheOptions{},
 		ManagedAnnotation:    annotations.ManagedByODHOperator,
 		ExcludeFromOwnership: []schema.GroupVersionKind{kubegvk.Namespace},
 		ApplyCustomizers: map[schema.GroupVersionKind]CustomizerFunc{

@@ -24,9 +24,10 @@ type Cache struct {
 	entries map[string]cacheEntry
 }
 
-// NewCache creates a process-local deploy cache from optional settings.
+// NewCache creates a process-local deploy cache. Nil or disabled settings
+// return no cache; a zero TTL uses the default duration.
 func NewCache(options *CacheOptions) *Cache {
-	if options == nil {
+	if options == nil || options.Disabled {
 		return nil
 	}
 

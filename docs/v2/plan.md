@@ -189,3 +189,19 @@ buildable; the v2 runtime must not depend on it.
 - [x] Final implementation validation passed with the environment-dependent
   skips recorded above. The standalone v2 build also required and now has the
   OpenShift module content hashes in `v2/go.sum`.
+
+## Post-closeout deploy update
+
+- [x] Deploy now enables its process-local cache by default, with an explicit
+  `WithoutCache` option and equivalent complete-struct configuration. Per-run
+  labels and annotations override constructor metadata before policy stamping
+  and cache fingerprinting. `RunOptions.Merge` and `RunOptions.Validate` own
+  invocation option composition and validation, and every run field has a
+  functional option.
+- [x] Focused tests cover the default cache, cache opt-out, changing per-run
+  metadata, metadata-policy precedence, map ownership, and option composition.
+  `make -C v2 test`, `make -C v2 vet`, and `make -C v2 verify-fmt` passed with a
+  writable Go build cache. `make -C v2 test-integration` passed with its live
+  Kind test skipped because Docker was unavailable. The pinned formatter and
+  linter remain blocked by unavailable `proxy.golang.org` DNS access; local
+  `gofmt` formatted the changed Go files.

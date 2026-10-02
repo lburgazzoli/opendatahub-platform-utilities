@@ -43,8 +43,9 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	runOptions, err := resolveRunOptions(values...)
-	if err != nil {
+	var runOptions RunOptions
+	runOptions.Merge(values...)
+	if err := runOptions.Validate(); err != nil {
 		return Result{}, err
 	}
 	if a.cache != nil {
@@ -165,6 +166,8 @@ func (a *Action) prepare(values RunOptions) (resources.List, error) {
 
 		resources.SetLabels(object, a.options.Labels)
 		resources.SetAnnotations(object, a.options.Annotations)
+		resources.SetLabels(object, values.Labels)
+		resources.SetAnnotations(object, values.Annotations)
 
 		err = a.options.MetadataPolicy.Apply(object, values.Owner)
 		if err != nil {

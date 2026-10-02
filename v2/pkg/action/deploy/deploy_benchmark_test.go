@@ -34,8 +34,8 @@ func benchmarkRun(b *testing.B) {
 				kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
 				options := []Option(nil)
 
-				if cached {
-					options = append(options, WithCache())
+				if !cached {
+					options = append(options, WithoutCache())
 				}
 
 				action := New(options...)
@@ -191,9 +191,9 @@ func BenchmarkRunNoOpClient(b *testing.B) {
 
 				var action *Action
 				if cached {
-					action = New(WithCache())
-				} else {
 					action = New()
+				} else {
+					action = New(WithoutCache())
 				}
 
 				if cached {

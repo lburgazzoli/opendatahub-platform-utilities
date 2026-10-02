@@ -75,6 +75,10 @@ constraints as the original implementation.
   ownership and customizer changes, but before SSA mutates the desired object.
   `resources.Apply` updates the desired object, which is then used as the
   deployed cache object.
+- Deploy caching is enabled by default. Apply per-run labels and annotations
+  after constructor metadata but before the metadata policy and cache lookup;
+  copy caller-owned maps when merging run options. Keep an explicit cache
+  opt-out for callers that require an apply on every run.
 - Low-level apply helpers must forward caller-supplied apply options without
   injecting ownership policy. Callers that require forced SSA ownership pass
   `client.ForceOwnership` explicitly.
