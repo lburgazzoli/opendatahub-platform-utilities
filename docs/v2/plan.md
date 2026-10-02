@@ -108,8 +108,8 @@ buildable; the v2 runtime must not depend on it.
 - [x] Resource access and deploy now use unstructured values end to end;
   typed apply remains supported only at the shared resource boundary, and the
   redundant apply deep copy was removed in `7a351f0`.
-- [x] SSA ownership policy is explicit at callers, and `deployOne` is colocated
-  with run orchestration in `210a84b`.
+- [x] SSA ownership policy is explicit at callers, and the per-resource
+  deployment helper is colocated with run orchestration in `210a84b`.
 - [x] T10 GC action implemented with policy-aware desired-set cleanup,
   authorization filtering, static/dynamic discovery, and focused tests in
   `8d9639e`.
@@ -214,3 +214,6 @@ buildable; the v2 runtime must not depend on it.
   startup probes now pass through the Deployment customizer unchanged; live
   replica and container-resource merging remains in place. A focused merge
   regression test and the v2 race suite, vet, and formatting checks passed.
+- [x] Renamed the per-resource deployment helper to `deployResource` to describe
+  its lookup, skip, customization, cache, and apply phases. The v2 race suite,
+  vet, and formatting checks passed.

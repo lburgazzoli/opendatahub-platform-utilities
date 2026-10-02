@@ -43,8 +43,10 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	var runOptions RunOptions
+
+	runOptions := RunOptions{}
 	runOptions.Merge(values...)
+
 	if err := runOptions.Validate(); err != nil {
 		return Result{}, err
 	}
@@ -61,7 +63,7 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	var runErrors []error
 	for index := range objects {
 		object := &objects[index]
-		applied, err := a.deployOne(ctx, runOptions, object)
+		applied, err := a.deployResource(ctx, runOptions, object)
 		switch {
 		case err != nil:
 			wrapped := fmt.Errorf("deploy %s: %w", object.GetObjectKind().GroupVersionKind(), err)
@@ -80,9 +82,9 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 	return result, errors.Join(runErrors...)
 }
 
-// deployOne processes one desired object through lookup, policy, customization,
+// deployResource processes a desired object through lookup, policy, customization,
 // cache evaluation, and server-side apply.
-func (a *Action) deployOne(
+func (a *Action) deployResource(
 	ctx context.Context,
 	values RunOptions,
 	object *unstructured.Unstructured,
