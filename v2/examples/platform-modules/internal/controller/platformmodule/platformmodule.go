@@ -99,7 +99,7 @@ func (c *Controller) render(ctx context.Context, request *pipeline.Request) erro
 		return fmt.Errorf("%w: module %q is not configured", ErrInvalidPlatformModule, module.Spec.Module)
 	}
 
-	configuredValues := ChartValues{
+	values, err := ToValues(ChartValues{
 		Module: ModuleValues{
 			ModuleSpec: definition.Config.Spec,
 			Enabled:    true,
@@ -109,9 +109,8 @@ func (c *Controller) render(ctx context.Context, request *pipeline.Request) erro
 		Projections: ProjectionValues{
 			Enabled: false,
 		},
-	}
+	})
 
-	values, err := ToValues(configuredValues)
 	if err != nil {
 		return fmt.Errorf("convert module %q chart values: %w", module.Spec.Module, err)
 	}

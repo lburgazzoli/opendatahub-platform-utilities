@@ -329,3 +329,6 @@ buildable; the v2 runtime must not depend on it.
   getter and jq matchers for Serving status polling. The example's formatter,
   race tests, vet, e2e compilation, pinned linter, and both Podman Kind
   scenarios passed.
+- [x] Inlined the typed chart values in the `ToValues` call. The example's
+  formatter, race tests, vet, e2e compilation, pinned linter, and both Podman
+  Kind scenarios passed with this change.
