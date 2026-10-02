@@ -2,6 +2,7 @@ package deploy_test
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"testing"
 
@@ -127,6 +128,61 @@ func TestRunSortsBeforeDeploying(t *testing.T) {
 	g.Expect(result.Applied).Should(Equal(2))
 	g.Expect(deployed).Should(Equal([]string{"second", "first"}))
 	g.Expect(collection.Get()[0].GetName()).Should(Equal("second"))
+}
+
+func TestRunErrorIdentifiesResource(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		continueOnError bool
+		applied         int
+	}{
+		{name: "stop", applied: 0},
+		{name: "continue", continueOnError: true, applied: 1},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			scheme := runtime.NewScheme()
+			g.Expect(corev1.AddToScheme(scheme)).Should(Succeed())
+
+			kubernetesClient := fake.NewClientBuilder().WithScheme(scheme).Build()
+			owner := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{
+				Name: "owner", Namespace: "ns", UID: "owner-uid",
+			}}
+			owner.SetGroupVersionKind(corev1.SchemeGroupVersion.WithKind("ConfigMap"))
+
+			first := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "first", Namespace: "ns"}}
+			second := &corev1.ConfigMap{ObjectMeta: metav1.ObjectMeta{Name: "second", Namespace: "ns"}}
+			collection := resources.New(resourceList(t, scheme, first, second))
+
+			action := deploy.New(
+				deploy.WithContinueOnError(test.continueOnError),
+				deploy.WithApplyCustomizer(corev1.SchemeGroupVersion.WithKind("ConfigMap"), func(
+					_ context.Context,
+					_ client.Client,
+					desired *unstructured.Unstructured,
+					_ *unstructured.Unstructured,
+				) error {
+					if desired.GetName() == "first" {
+						return errors.ErrUnsupported
+					}
+
+					return nil
+				}),
+			)
+
+			result, err := action.Run(t.Context(), deploy.RunOptions{
+				Client: kubernetesClient, Owner: owner, Resources: collection,
+			})
+			g.Expect(err).Should(MatchError(ContainSubstring("v1/ConfigMap/ns/first")))
+			g.Expect(result.Applied).Should(Equal(test.applied))
+		})
+	}
 }
 
 func TestRunPublishesDecoratedObjectsAfterLaterDeployFailure(t *testing.T) {

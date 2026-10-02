@@ -258,3 +258,7 @@ buildable; the v2 runtime must not depend on it.
   for cluster-scoped resources. The v2 race suite and vet passed; the changed
   Go files are formatted. The pinned linter reported no findings in the
   identity files, with 98 existing findings elsewhere.
+- [x] Included `resources.Identity` in deploy `Run` errors so failures name
+  the exact resource, and covered both stop and continue-on-error behavior.
+  The v2 race suite, vet, and formatter passed. The pinned linter still reports
+  94 findings in the current tree.

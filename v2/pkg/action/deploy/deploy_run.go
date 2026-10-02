@@ -66,14 +66,19 @@ func (a *Action) Run(ctx context.Context, values ...RunOption) (Result, error) {
 		var applied bool
 		err := a.options.MetadataPolicy.Apply(object, ro.Owner)
 		if err != nil {
-			err = fmt.Errorf("decorate %s/%s %s: %w", object.GetNamespace(), object.GetName(), object.GroupVersionKind(), err)
+			err = fmt.Errorf("decorate: %w", err)
 		} else {
 			applied, err = a.deploy(ctx, ro, object)
 		}
 
 		switch {
 		case err != nil:
-			wrapped := fmt.Errorf("deploy %s: %w", object.GetObjectKind().GroupVersionKind(), err)
+			identity := resources.Identity{
+				GVK:       object.GroupVersionKind(),
+				Namespace: object.GetNamespace(),
+				Name:      object.GetName(),
+			}
+			wrapped := fmt.Errorf("deploy %s: %w", identity, err)
 			if !a.options.ContinueOnError {
 				return result, wrapped
 			}
