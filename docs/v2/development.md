@@ -96,9 +96,12 @@ constraints as the original implementation.
 - The managed-resource opt-out annotation is presence-based in v2: any
   existing object carrying the configured key is skipped. Keep this behavior
   explicit in comments and tests.
-- Deployment resource merging intentionally preserves the legacy behavior,
-  even when that behavior prevents explicit desired resource changes. Treat it
-  as compatibility policy and do not “correct” it during cleanup work.
+- Deployment container-resource and replica merging intentionally preserves
+  the legacy behavior, even when that behavior prevents explicit desired
+  resource changes. Treat it as compatibility policy and do not “correct” it
+  during cleanup work.
+- Deployment probes are controlled by the desired manifest. Do not copy live
+  liveness, readiness, or startup probes into an omitted desired field.
 - Validate immutable action configuration once during construction and cache the
   result; each `Run` must still check that cached result before validating
   invocation inputs or performing I/O.

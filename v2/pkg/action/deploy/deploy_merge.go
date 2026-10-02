@@ -14,17 +14,13 @@ var (
 	ErrFieldNotSlice = errors.New("field is not a slice")
 )
 
-// MergeDeployments preserves live replicas, container resources, and probes
-// that are omitted from the desired Deployment.
+// MergeDeployments preserves live replicas and container resources. Probe
+// fields remain as specified by the desired Deployment.
 func MergeDeployments(
 	existing *unstructured.Unstructured,
 	desired *unstructured.Unstructured,
 ) error {
 	err := mergeDeploymentResources(existing, desired)
-	if err != nil {
-		return err
-	}
-	err = mergeDeploymentProbes(existing, desired)
 	if err != nil {
 		return err
 	}
@@ -94,57 +90,6 @@ func mergeDeploymentResources(
 			continue
 		}
 		container["resources"] = runtime.DeepCopyJSONValue(liveResources)
-	}
-	return nil
-}
-
-//nolint:cyclop // each probe field has independent preservation semantics.
-func mergeDeploymentProbes(
-	existing *unstructured.Unstructured,
-	desired *unstructured.Unstructured,
-) error {
-	live, err := containers(existing)
-	if err != nil {
-		return err
-	}
-	wanted, err := containers(desired)
-	if err != nil {
-		return err
-	}
-	probes := make(map[string]map[string]any, len(live))
-	for _, value := range live {
-		container, ok := value.(map[string]any)
-		if !ok {
-			continue
-		}
-		name, ok := container["name"].(string)
-		if !ok {
-			continue
-		}
-		probes[name] = map[string]any{}
-		for _, field := range []string{"livenessProbe", "readinessProbe", "startupProbe"} {
-			if probe, found := container[field]; found {
-				probes[name][field] = probe
-			}
-		}
-	}
-	for _, value := range wanted {
-		container, ok := value.(map[string]any)
-		if !ok {
-			continue
-		}
-		name, ok := container["name"].(string)
-		if !ok {
-			continue
-		}
-		for _, field := range []string{"livenessProbe", "readinessProbe", "startupProbe"} {
-			if _, found := container[field]; found {
-				continue
-			}
-			if probe, found := probes[name][field]; found {
-				container[field] = runtime.DeepCopyJSONValue(probe)
-			}
-		}
 	}
 	return nil
 }

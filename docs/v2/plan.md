@@ -210,3 +210,7 @@ buildable; the v2 runtime must not depend on it.
   enables it with optional TTL settings. Focused option tests and the v2 race
   suite, vet, and formatting checks passed; the pinned linter remained
   unavailable because `proxy.golang.org` DNS resolution failed.
+- [x] Removed v2 Deployment probe carryover. Desired liveness, readiness, and
+  startup probes now pass through the Deployment customizer unchanged; live
+  replica and container-resource merging remains in place. A focused merge
+  regression test and the v2 race suite, vet, and formatting checks passed.

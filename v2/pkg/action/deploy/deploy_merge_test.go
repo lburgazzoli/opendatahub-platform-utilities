@@ -17,6 +17,52 @@ import (
 	"github.com/opendatahub-io/odh-platform-utilities/v2/pkg/kube/resources"
 )
 
+func TestMergeDeploymentsLeavesProbesAsDesired(t *testing.T) {
+	t.Parallel()
+
+	g := NewWithT(t)
+	probe := func(path string) map[string]any {
+		return map[string]any{"httpGet": map[string]any{"path": path}}
+	}
+	deployment := func(container map[string]any) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{"containers": []any{container}},
+				},
+			},
+		}}
+	}
+
+	existing := deployment(map[string]any{
+		"name":           "app",
+		"livenessProbe":  probe("/live"),
+		"readinessProbe": probe("/old-ready"),
+		"startupProbe":   probe("/startup"),
+	})
+	desired := deployment(map[string]any{
+		"name":           "app",
+		"readinessProbe": probe("/ready"),
+	})
+
+	g.Expect(deploy.MergeDeployments(existing, desired)).Should(Succeed())
+
+	containers, found, err := unstructured.NestedSlice(desired.Object, "spec", "template", "spec", "containers")
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(found).Should(BeTrue())
+	g.Expect(containers).Should(HaveLen(1))
+
+	container, ok := containers[0].(map[string]any)
+	g.Expect(ok).Should(BeTrue())
+	g.Expect(container).ShouldNot(HaveKey("livenessProbe"))
+	g.Expect(container).ShouldNot(HaveKey("startupProbe"))
+
+	path, found, err := unstructured.NestedString(container, "readinessProbe", "httpGet", "path")
+	g.Expect(err).ShouldNot(HaveOccurred())
+	g.Expect(found).Should(BeTrue())
+	g.Expect(path).Should(Equal("/ready"))
+}
+
 func TestRunUsesObservabilityCustomizerByDefault(t *testing.T) {
 	t.Parallel()
 
