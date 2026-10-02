@@ -62,6 +62,7 @@ func Setup(manager manager.Manager, configuration *moduleconfig.Config) error {
 		WithAction(deploy.New()).
 		Build()
 }
+
 func (r *HelmComponentReconciler) render(
 	ctx context.Context,
 	request *pipeline.Request,
