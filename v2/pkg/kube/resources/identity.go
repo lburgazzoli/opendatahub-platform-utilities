@@ -24,6 +24,11 @@ type Identity struct {
 	Name      string
 }
 
+// String returns the namespace, name, and GVK of the resource.
+func (identity Identity) String() string {
+	return fmt.Sprintf("%s/%s %s", identity.Namespace, identity.Name, identity.GVK)
+}
+
 // IdentityOf returns the validated identity of an object.
 func IdentityOf(object client.Object, scheme *runtime.Scheme) (Identity, error) {
 	if object == nil {

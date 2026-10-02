@@ -248,3 +248,8 @@ buildable; the v2 runtime must not depend on it.
   allowing deploy to order the collection without a `Get`/`Set` round trip. The
   v2 race suite, vet, formatting checks, and pinned formatter passed. The
   pinned linter ran and reported 94 current-codebase findings.
+- [x] Added `resources.Identity.String()` using the existing
+  `namespace/name GVK` diagnostic format, including cluster-scoped identities.
+  The v2 race suite and vet passed. The changed Go files were formatted;
+  repository formatting is held by a separate in-progress deploy edit. The
+  pinned linter reported no findings in the identity code.

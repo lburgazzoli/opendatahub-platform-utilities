@@ -160,6 +160,43 @@ func TestIdentityAndDecode(t *testing.T) {
 	g.Expect(decoded[0].GetName()).Should(Equal("one"))
 }
 
+func TestIdentityString(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		identity resources.Identity
+		expected string
+	}{
+		{
+			name: "namespaced",
+			identity: resources.Identity{
+				GVK:       schema.GroupVersionKind{Group: "example.io", Version: "v1", Kind: "Object"},
+				Namespace: "namespace",
+				Name:      "object",
+			},
+			expected: "namespace/object example.io/v1, Kind=Object",
+		},
+		{
+			name: "cluster scoped",
+			identity: resources.Identity{
+				GVK:  schema.GroupVersionKind{Version: "v1", Kind: "Namespace"},
+				Name: "object",
+			},
+			expected: "/object /v1, Kind=Namespace",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			g := NewWithT(t)
+			g.Expect(test.identity.String()).Should(Equal(test.expected))
+		})
+	}
+}
+
 func TestApplyCreatesObjectAndApplyStatusWritesStatus(t *testing.T) {
 	t.Parallel()
 
